@@ -105,6 +105,7 @@ class InvoiceDetailScreen extends StatelessWidget {
               if (inv != null) {
                 for (final it in inv.items) {
                   final p = prod.byId(it.productId);
+                  if (p == null) continue;
                   p.quantity += it.quantity;
                   await prod.update(p);
                 }

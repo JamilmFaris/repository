@@ -3,7 +3,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:typed_data';
-import '../data/models/invoice.dart';
+import '../../data/models/invoice.dart';
 import '../../providers/settings_provider.dart';
 
 class InvoicePdf {

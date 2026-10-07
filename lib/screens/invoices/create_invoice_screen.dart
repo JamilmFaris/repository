@@ -26,6 +26,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     final qty = int.tryParse(_qtyCtrl.text) ?? 0;
     if (qty <= 0) return;
     final prod = context.read<ProductProvider>().byId(_selectedProductId!);
+    if (prod == null) return;                                    // ← أضف
     if (qty > prod.quantity) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('الكمية المتوفرة ${prod.quantity} فقط'), backgroundColor: AppColors.danger),
@@ -59,6 +60,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     // خصم الكميات
     for (final it in _items) {
       final prod = prodProvider.byId(it.productId);
+      if (prod == null) continue;
       prod.quantity -= it.quantity;
       await prodProvider.update(prod);
     }

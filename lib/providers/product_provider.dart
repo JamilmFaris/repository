@@ -52,5 +52,11 @@ class ProductProvider extends ChangeNotifier {
     await loadProducts();
   }
 
-  Product? byId(int id) => _products.firstWhere((p) => p.id == id, orElse: () => throw '');
+  Product? byId(int id) {
+    try {
+      return _products.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 }
