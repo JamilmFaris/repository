@@ -25,7 +25,7 @@ class ReportProvider extends ChangeNotifier {
     final m = <int, int>{};
     for (final inv in _invoices) {
       for (final it in inv.items) {
-        m[it.productId] = (m[it.productId] ?? 0) + it.quantity;
+        m[it.productId] = (m[it.productId] ?? 0) + it.soldQty;
       }
     }
     return m;
@@ -35,7 +35,7 @@ class ReportProvider extends ChangeNotifier {
     final m = <int, double>{};
     for (final inv in _invoices) {
       for (final it in inv.items) {
-        m[it.productId] = (m[it.productId] ?? 0) + it.profit;
+        m[it.productId] = (m[it.productId] ?? 0) + inv.profitOf(it);
       }
     }
     return m;

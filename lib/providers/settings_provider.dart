@@ -8,6 +8,7 @@ class SettingsProvider extends ChangeNotifier {
   String address = '';
   String currency = 'ل.س';
   bool isDarkMode = false;
+  double dollarRate = 0;
 
   Future<void> load() async {
     final m = await _repo.load();
@@ -16,11 +17,12 @@ class SettingsProvider extends ChangeNotifier {
     address = m['address'];
     currency = m['currency'];
     isDarkMode = m['dark'];
+    dollarRate = m['dollarRate'];
     notifyListeners();
   }
 
-  Future<void> update({String? storeName, String? phone, String? address, String? currency, bool? dark}) async {
-    await _repo.save(storeName: storeName, phone: phone, address: address, currency: currency, dark: dark);
+  Future<void> update({String? storeName, String? phone, String? address, String? currency, bool? dark, double? dollarRate}) async {
+    await _repo.save(storeName: storeName, phone: phone, address: address, currency: currency, dark: dark, dollarRate: dollarRate);
     await load();
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/utils/pricing.dart';
 import '../data/models/product.dart';
 import '../data/repositories/product_repository.dart';
 
@@ -44,6 +45,17 @@ class ProductProvider extends ChangeNotifier {
   Future<void> updateQuantity(Product p, int qty) async {
     p.quantity = qty;
     await _repo.update(p);
+    await loadProducts();
+  }
+
+  /// إعادة تسعير أصناف الدولار عند تغيّر سعر الصرف.
+  Future<void> repriceAll(double rate) async {
+    for (final p in _products.where((p) => p.isUsd)) {
+      await _repo.update(p.copyWith(
+        buyPrice: Pricing.usdToSyp(p.buyPriceUsd, rate),
+        sellPrice: Pricing.usdToSyp(p.sellPriceUsd, rate),
+      ));
+    }
     await loadProducts();
   }
 

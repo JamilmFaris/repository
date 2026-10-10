@@ -1,30 +1,42 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:repository/main.dart';
+import 'package:repository/core/utils/pricing.dart';
+import 'package:repository/data/models/invoice.dart';
+import 'package:repository/data/models/invoice_item.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('تقريب الدولار للسوري لأقرب 50 للأعلى', () {
+    expect(Pricing.usdToSyp(1, 2410), 2450);
+    expect(Pricing.usdToSyp(1, 2435), 2450);
+    expect(Pricing.usdToSyp(1, 2488), 2500);
+    expect(Pricing.usdToSyp(1, 2450), 2450);
+    expect(Pricing.usdToSyp(0.125, 15000), 1900); // 1875 -> 1900
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('خصم صنف ونسبة فاتورة وهدية ومرتجع', () {
+    final paid = InvoiceItem(
+      productName: 'A', productId: 1, quantity: 5,
+      buyPrice: 60, sellPrice: 100,
+      discountType: 'percent', discountValue: 10, // 500 -> 450
+    );
+    final gift = InvoiceItem(
+      productName: 'A', productId: 1, quantity: 1,
+      buyPrice: 60, sellPrice: 0, isGift: true,
+    );
+    final inv = Invoice(
+      number: '1', customerName: 'x', date: DateTime(2026),
+      items: [paid, gift], discountType: 'amount', discountValue: 50,
+    );
+    expect(paid.totalSell, 450);
+    expect(inv.subtotal, 450);
+    expect(inv.invoiceDiscount, 50);
+    expect(inv.total, 400);
+    expect(inv.totalCost, 300); // الهدية خارج التكلفة
+    expect(inv.giftCost, 60); // تذهب لمصاريف العروض
+    expect(inv.totalProfit, 100);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    paid.returnedQty = 1; // مرتجع قطعة
+    expect(paid.totalSell, 360); // 450 * 4/5
+    expect(paid.soldQty, 4);
+    expect(inv.total, 310);
   });
 }

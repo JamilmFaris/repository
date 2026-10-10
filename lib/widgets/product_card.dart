@@ -78,16 +78,25 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
+                const Spacer(),
                 IconButton(
-                  onPressed: () => onQuantityChanged(product.quantity - 1),
+                  onPressed: product.quantity > 0 ? () => onQuantityChanged(product.quantity - 1) : null,
                   icon: const Icon(Icons.remove_circle_outline),
                   color: AppColors.danger,
                 ),
-                Expanded(
-                  child: Slider(
-                    value: product.quantity.clamp(0, 100).toDouble(),
-                    min: 0, max: 100, divisions: 100,
-                    onChanged: (v) => onQuantityChanged(v.toInt()),
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _editQuantity(context),
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 72),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('${product.quantity}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 IconButton(
@@ -95,12 +104,37 @@ class ProductCard extends StatelessWidget {
                   icon: const Icon(Icons.add_circle_outline),
                   color: AppColors.success,
                 ),
+                const Spacer(),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _editQuantity(BuildContext context) async {
+    final c = TextEditingController(text: '${product.quantity}');
+    final v = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('كمية ${product.name}'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, int.tryParse(c.text.trim())),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    if (v != null && v >= 0) onQuantityChanged(v);
   }
 
   Widget _chip(String label, String value, Color color) => Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'products/products_screen.dart';
+import 'customers/customers_screen.dart';
 import 'invoices/invoices_screen.dart';
 import 'reports/reports_screen.dart';
 import 'settings/settings_screen.dart';
@@ -15,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _screens = const [
     ProductsScreen(),
     InvoicesScreen(),
+    CustomersScreen(),
     ReportsScreen(),
     SettingsScreen(),
   ];
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'الأصناف'),
           NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'الفواتير'),
+          NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'الزبائن'),
           NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'التقارير'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'الإعدادات'),
         ],

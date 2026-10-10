@@ -7,6 +7,7 @@ import '../../providers/product_provider.dart';
 import '../../providers/report_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/app_drawer.dart';
 import '../../widgets/product_card.dart';
 import 'add_edit_product_screen.dart';
 
@@ -24,6 +25,7 @@ class ProductsScreen extends StatelessWidget {
     final profitMap = report.profitByProduct;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('الأصناف'),
         actions: [

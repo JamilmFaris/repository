@@ -6,6 +6,7 @@ import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/app_drawer.dart';
 import 'create_invoice_screen.dart';
 import 'invoice_detail_screen.dart';
 
@@ -16,9 +17,9 @@ class InvoicesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final inv = context.watch<InvoiceProvider>();
     final settings = context.watch<SettingsProvider>();
-    final products = context.watch<ProductProvider>();
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(title: const Text('الفواتير')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -57,6 +58,9 @@ class InvoicesScreen extends StatelessWidget {
                         Text('${invoice.number} • ${Fmt.date(invoice.date)}'),
                         Text('${invoice.items.length} صنف • ${Fmt.money(invoice.total, settings.currency)}',
                             style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                        if (invoice.owed > 0)
+                          Text('آجل — متبقي ${Fmt.money(invoice.owed, settings.currency)}',
+                              style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),

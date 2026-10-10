@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  static const _font = 'Cairo';
+
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    fontFamily: _font,
     scaffoldBackgroundColor: AppColors.bgLight,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       brightness: Brightness.light,
     ),
-    textTheme: GoogleFonts.cairoTextTheme(),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: GoogleFonts.cairo(
+      titleTextStyle: TextStyle(
+        fontFamily: _font,
         fontSize: 20,
         fontWeight: FontWeight.bold,
         color: Colors.white,
@@ -33,18 +35,19 @@ class AppTheme {
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    fontFamily: _font,
     scaffoldBackgroundColor: AppColors.bgDark,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       brightness: Brightness.dark,
     ),
-    textTheme: GoogleFonts.cairoTextTheme(ThemeData.dark().textTheme),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.cardDark,
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: GoogleFonts.cairo(
+      titleTextStyle: TextStyle(
+        fontFamily: _font,
         fontSize: 20,
         fontWeight: FontWeight.bold,
         color: Colors.white,

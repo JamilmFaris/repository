@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../widgets/app_drawer.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
@@ -23,33 +24,36 @@ class ReportsScreen extends StatelessWidget {
     final soldByProduct = r.soldQtyByProduct;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(title: const Text('التقارير')),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.6,
-            children: [
-              _statCard('إجمالي الربح', Fmt.money(r.totalProfit, settings.currency), Icons.trending_up, AppColors.success),
-              _statCard('إجمالي المبيعات', Fmt.money(r.totalSales, settings.currency), Icons.attach_money, AppColors.primary),
-              _statCard('تكلفة البضاعة', Fmt.money(r.totalCost, settings.currency), Icons.shopping_cart, AppColors.warning),
-              _statCard('قيمة المخزون', Fmt.money(r.inventoryValue, settings.currency), Icons.warehouse, AppColors.primaryDark),
-              _statCard('الربح المتوقع', Fmt.money(r.expectedProfit, settings.currency), Icons.auto_graph, AppColors.success),
-              _statCard('عدد الأصناف', '${r.productsCount}', Icons.inventory_2, AppColors.primary),
-              _statCard('عدد الفواتير', '${r.invoicesCount}', Icons.receipt, AppColors.warning),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _chartCard('الأرباح في آخر 14 يوم', _lineChart(last14)),
-          _chartCard('ربح كل صنف', _barChartProfit(profitByProduct, prod.products.map((e) => e.name).toList())),
-          _chartCard('الأصناف الأكثر مبيعاً', _barChartSold(soldByProduct, prod.products.map((e) => e.name).toList())),
-          _chartCard('توزيع الأرباح', _pieChart(profitByProduct, prod.products.map((e) => e.name).toList())),
-        ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.6,
+              children: [
+                _statCard('إجمالي الربح', Fmt.money(r.totalProfit, settings.currency), Icons.trending_up, AppColors.success),
+                _statCard('إجمالي المبيعات', Fmt.money(r.totalSales, settings.currency), Icons.attach_money, AppColors.primary),
+                _statCard('تكلفة البضاعة', Fmt.money(r.totalCost, settings.currency), Icons.shopping_cart, AppColors.warning),
+                _statCard('قيمة المخزون', Fmt.money(r.inventoryValue, settings.currency), Icons.warehouse, AppColors.primaryDark),
+                _statCard('الربح المتوقع', Fmt.money(r.expectedProfit, settings.currency), Icons.auto_graph, AppColors.success),
+                _statCard('عدد الأصناف', '${r.productsCount}', Icons.inventory_2, AppColors.primary),
+                _statCard('عدد الفواتير', '${r.invoicesCount}', Icons.receipt, AppColors.warning),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _chartCard('الأرباح في آخر 14 يوم', _lineChart(last14)),
+            _chartCard('ربح كل صنف', _barChartProfit(profitByProduct, prod.products.map((e) => e.name).toList())),
+            _chartCard('الأصناف الأكثر مبيعاً', _barChartSold(soldByProduct, prod.products.map((e) => e.name).toList())),
+            _chartCard('توزيع الأرباح', _pieChart(profitByProduct, prod.products.map((e) => e.name).toList())),
+          ],
+        ),
       ),
     );
   }

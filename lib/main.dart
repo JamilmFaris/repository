@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
 import 'providers/product_provider.dart';
 import 'providers/invoice_provider.dart';
+import 'providers/party_provider.dart';
 import 'providers/report_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
@@ -24,6 +25,7 @@ class MakhzaniApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
         ChangeNotifierProvider(create: (_) => ProductProvider()..loadProducts()),
         ChangeNotifierProvider(create: (_) => InvoiceProvider()..loadInvoices()),
+        ChangeNotifierProvider(create: (_) => PartyProvider()..loadAll()),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
       ],
       child: Consumer<SettingsProvider>(
