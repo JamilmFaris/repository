@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_theme.dart';
+import 'providers/expense_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/invoice_provider.dart';
 import 'providers/party_provider.dart';
@@ -26,6 +27,10 @@ class MakhzaniApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()..loadProducts()),
         ChangeNotifierProvider(create: (_) => InvoiceProvider()..loadInvoices()),
         ChangeNotifierProvider(create: (_) => PartyProvider()..loadAll()),
+        ChangeNotifierProxyProvider<InvoiceProvider, ExpenseProvider>(
+          create: (_) => ExpenseProvider()..load(),
+          update: (_, inv, exp) => exp!..load(),
+        ),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
       ],
       child: Consumer<SettingsProvider>(
@@ -33,8 +38,8 @@ class MakhzaniApp extends StatelessWidget {
           return MaterialApp(
             title: 'مخزني',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
+            theme: AppTheme.light(Color(settings.themeColor)),
+            darkTheme: AppTheme.dark(Color(settings.themeColor)),
             themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             locale: const Locale('ar'),
             supportedLocales: const [Locale('ar'), Locale('en')],

@@ -651,7 +651,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               Text(Fmt.money(it.totalSell, cur), style: const TextStyle(fontWeight: FontWeight.bold)),
             IconButton(
               tooltip: it.isGift ? 'تعديل كمية الهدية' : 'خصم على الصنف',
-              icon: Icon(it.isGift ? Icons.edit : Icons.percent, color: AppColors.primary),
+              icon: Icon(it.isGift ? Icons.edit : Icons.percent, color: Theme.of(context).colorScheme.primary),
               onPressed: () => it.isGift ? _editGift(idx) : _editItemDiscount(idx),
             ),
             IconButton(

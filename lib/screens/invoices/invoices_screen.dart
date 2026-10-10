@@ -48,8 +48,8 @@ class InvoicesScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.all(12),
                     leading: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.receipt, color: AppColors.primary),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(Icons.receipt, color: Theme.of(context).colorScheme.primary),
                     ),
                     title: Text(invoice.customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(

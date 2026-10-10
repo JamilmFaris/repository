@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/coupons/coupons_screen.dart';
 import '../screens/purchases/purchases_screen.dart';
 import '../screens/reservations/reservations_screen.dart';
+import '../screens/settings/settings_screen.dart';
 import '../screens/suppliers/suppliers_screen.dart';
 
 /// القائمة الجانبية: الأقسام غير الموجودة في التبويبات السفلية.
@@ -43,6 +44,12 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.local_offer),
               title: const Text('الكوبونات'),
               onTap: () => _go(context, const CouponsScreen()),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('الإعدادات والنسخ الاحتياطي'),
+              onTap: () => _go(context, const SettingsScreen()),
             ),
           ],
         ),

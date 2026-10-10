@@ -122,7 +122,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 final val = c.type == 'percent' ? '${Fmt.num2(c.value)}%' : Fmt.num2(c.value);
                 return Card(
                   child: ListTile(
-                    leading: const Icon(Icons.local_offer, color: AppColors.primary),
+                    leading: Icon(Icons.local_offer, color: Theme.of(context).colorScheme.primary),
                     title: Text('${c.code} — خصم $val',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(c.expiry == null

@@ -4,17 +4,17 @@ import 'app_colors.dart';
 class AppTheme {
   static const _font = 'Cairo';
 
-  static ThemeData get lightTheme => ThemeData(
+  static ThemeData light(Color seed) => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     fontFamily: _font,
     scaffoldBackgroundColor: AppColors.bgLight,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: seed,
       brightness: Brightness.light,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.primary,
+    ).copyWith(primary: seed),
+    appBarTheme: AppBarTheme(
+      backgroundColor: seed,
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
@@ -32,15 +32,15 @@ class AppTheme {
     ),
   );
 
-  static ThemeData get darkTheme => ThemeData(
+  static ThemeData dark(Color seed) => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     fontFamily: _font,
     scaffoldBackgroundColor: AppColors.bgDark,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: seed,
       brightness: Brightness.dark,
-    ),
+    ).copyWith(primary: seed),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.cardDark,
       foregroundColor: Colors.white,
