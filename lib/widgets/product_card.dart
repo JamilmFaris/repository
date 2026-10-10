@@ -115,6 +115,7 @@ class ProductCard extends StatelessWidget {
 
   Future<void> _editQuantity(BuildContext context) async {
     final c = TextEditingController(text: '${product.quantity}');
+    Fmt.selectAll(c);
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -122,6 +123,7 @@ class ProductCard extends StatelessWidget {
         content: TextField(
           controller: c,
           autofocus: true,
+          onTap: () => Fmt.selectAll(c),
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),

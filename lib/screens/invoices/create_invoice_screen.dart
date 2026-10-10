@@ -237,6 +237,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Future<void> _editGift(int idx) async {
     final it = _items[idx];
     final c = TextEditingController(text: '${it.keptQty}');
+    Fmt.selectAll(c);
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -244,6 +245,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         content: TextField(
           controller: c,
           autofocus: true,
+          onTap: () => Fmt.selectAll(c),
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
@@ -277,6 +279,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     final it = _items[idx];
     var type = it.discountType == 'none' ? 'percent' : it.discountType;
     final c = TextEditingController(text: it.discountType == 'none' ? '' : _plain(it.discountValue));
+    Fmt.selectAll(c);
     final res = await showDialog<_Disc>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -297,6 +300,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               TextField(
                 controller: c,
                 autofocus: true,
+                onTap: () => Fmt.selectAll(c),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: type == 'percent' ? 'نسبة الخصم %' : 'مبلغ الخصم',
@@ -461,6 +465,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _number,
+                  onTap: () => Fmt.selectAll(_number),
                     decoration: const InputDecoration(
                       labelText: 'رقم الفاتورة',
                       border: OutlineInputBorder(),
@@ -531,6 +536,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                       Expanded(
                         child: TextField(
                           controller: _qtyCtrl,
+                          onTap: () => Fmt.selectAll(_qtyCtrl),
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'الكمية', border: OutlineInputBorder()),
                         ),
@@ -677,6 +683,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             if (_credit) ...[
               TextField(
                 controller: _paid,
+                onTap: () => Fmt.selectAll(_paid),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
@@ -728,6 +735,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   child: TextField(
                     controller: _discValue,
                     enabled: _discType != 'none',
+                    onTap: () => Fmt.selectAll(_discValue),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => setState(() => _couponCode = null),
                     decoration: InputDecoration(

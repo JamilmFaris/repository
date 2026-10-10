@@ -182,6 +182,7 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                     Expanded(
                       child: TextField(
                         controller: _qty,
+                        onTap: () => Fmt.selectAll(_qty),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(labelText: 'الكمية', border: OutlineInputBorder()),
                       ),
@@ -190,6 +191,7 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                     Expanded(
                       child: TextField(
                         controller: _price,
+                        onTap: () => Fmt.selectAll(_price),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
                           labelText: 'سعر الشراء (${prod != null && prod.isUsd ? '\$' : s.currency})',
@@ -230,6 +232,7 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _paid,
+                  onTap: () => Fmt.selectAll(_paid),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(

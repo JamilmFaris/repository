@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 class Fmt {
@@ -15,6 +16,11 @@ class Fmt {
       b.write(i >= 0 ? '$i' : (ch == '٫' || ch == ',' ? '.' : ch));
     }
     return double.tryParse(b.toString());
+  }
+
+  /// يحدّد كامل النص في الحقل ليُستبدَل الرقم القديم بمجرد الكتابة.
+  static void selectAll(TextEditingController c) {
+    c.selection = TextSelection(baseOffset: 0, extentOffset: c.text.length);
   }
 
   static String money(double v, String currency) => '${_num.format(v)} $currency';

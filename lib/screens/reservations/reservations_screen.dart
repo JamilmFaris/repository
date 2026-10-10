@@ -184,6 +184,7 @@ class _ReservationFormState extends State<_ReservationForm> {
               Expanded(
                 child: TextField(
                   controller: _qty,
+                  onTap: () => Fmt.selectAll(_qty),
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'الكمية', border: OutlineInputBorder()),
                 ),

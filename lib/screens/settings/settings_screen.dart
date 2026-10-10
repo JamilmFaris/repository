@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../../widgets/app_drawer.dart';
 import '../../data/database/database_helper.dart';
 import '../../providers/invoice_provider.dart';
@@ -128,6 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: c,
+        onTap: () => Fmt.selectAll(c),
         keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : null,
         decoration: InputDecoration(
           labelText: label,

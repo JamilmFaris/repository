@@ -23,6 +23,7 @@ Future<Party?> showPartyDialog(BuildContext context, {Party? initial, required S
             const SizedBox(height: 12),
             TextField(
               controller: phone,
+              onTap: () => Fmt.selectAll(phone),
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'الهاتف', border: OutlineInputBorder()),
             ),
@@ -67,6 +68,7 @@ class AmountResult {
 Future<AmountResult?> showAmountDialog(BuildContext context, {required String title, double? initial}) {
   final amount = TextEditingController(
       text: initial == null || initial <= 0 ? '' : Fmt.num2(initial).replaceAll(',', ''));
+    Fmt.selectAll(amount);
   final note = TextEditingController();
   return showDialog<AmountResult>(
     context: context,
@@ -78,6 +80,7 @@ Future<AmountResult?> showAmountDialog(BuildContext context, {required String ti
           TextField(
             controller: amount,
             autofocus: true,
+            onTap: () => Fmt.selectAll(amount),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(labelText: 'المبلغ', border: OutlineInputBorder()),
           ),

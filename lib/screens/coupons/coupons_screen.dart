@@ -56,6 +56,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: value,
+                  onTap: () => Fmt.selectAll(value),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     labelText: type == 'percent' ? 'نسبة الخصم %' : 'مبلغ الخصم',

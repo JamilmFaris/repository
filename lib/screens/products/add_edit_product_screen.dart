@@ -120,7 +120,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'اسم الصنف', border: OutlineInputBorder()),
                 validator: (v) => v!.trim().isEmpty ? 'مطلوب' : null),
               const SizedBox(height: 12),
-              TextFormField(controller: _qty, keyboardType: TextInputType.number,
+              TextFormField(controller: _qty, onTap: () => Fmt.selectAll(_qty), keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'الكمية', border: OutlineInputBorder()),
                 validator: (v) => int.tryParse(_latin(v ?? '')) == null ? 'رقم صحيح مطلوب' : null),
               const SizedBox(height: 16),
@@ -133,11 +133,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 onSelectionChanged: (v) => setState(() => _usd = v.first),
               ),
               const SizedBox(height: 12),
-              TextFormField(controller: _buy, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              TextFormField(controller: _buy, onTap: () => Fmt.selectAll(_buy), keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(labelText: 'سعر الشراء ($unit)', border: const OutlineInputBorder()),
                 validator: (v) => double.tryParse(_latin(v ?? '')) == null ? 'رقم مطلوب' : null),
               const SizedBox(height: 12),
-              TextFormField(controller: _sell, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              TextFormField(controller: _sell, onTap: () => Fmt.selectAll(_sell), keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(labelText: 'سعر المبيع ($unit)', border: const OutlineInputBorder()),
                 validator: (v) => double.tryParse(_latin(v ?? '')) == null ? 'رقم مطلوب' : null),
               if (_usd) ...[
@@ -162,12 +162,12 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(controller: _offerBuy, keyboardType: TextInputType.number,
+                    child: TextFormField(controller: _offerBuy, onTap: () => Fmt.selectAll(_offerBuy), keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'مع كل (N)', border: OutlineInputBorder())),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: TextFormField(controller: _offerFree, keyboardType: TextInputType.number,
+                    child: TextFormField(controller: _offerFree, onTap: () => Fmt.selectAll(_offerFree), keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'مجاناً (M)', border: OutlineInputBorder())),
                   ),
                 ],
