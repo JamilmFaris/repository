@@ -8,6 +8,7 @@ import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/party_dialogs.dart';
 import '../purchases/purchase_invoice_screen.dart';
+import 'supplier_return_screen.dart';
 
 class SupplierDetailScreen extends StatelessWidget {
   final int supplierId;
@@ -72,7 +73,8 @@ class SupplierDetailScreen extends StatelessWidget {
                   if (supplier.phone.isNotEmpty) _row('الهاتف', supplier.phone),
                   _row('إجمالي المشتريات', Fmt.money(total, cur)),
                   const Divider(),
-                  _row('المتبقي له', Fmt.money(balance, cur),
+                  _row(balance < 0 ? 'رصيد لك عنده' : 'المتبقي له',
+                      Fmt.money(balance < 0 ? -balance : balance, cur),
                       bold: true, color: balance > 0 ? AppColors.danger : AppColors.success),
                 ],
               ),
@@ -114,6 +116,21 @@ class SupplierDetailScreen extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.assignment_return),
+              label: const Text('إرجاع بضاعة لمورّد'),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SupplierReturnScreen(supplierId: supplierId)),
+                );
+                if (context.mounted) await context.read<ProductProvider>().loadProducts();
+              },
+            ),
+          ),
           const SizedBox(height: 12),
           const Text('فواتير الشراء', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           if (purchases.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('لا توجد فواتير')),
@@ -132,6 +149,19 @@ class SupplierDetailScreen extends StatelessWidget {
                       trailing: Text(Fmt.money(it.total, cur)),
                     ),
                 ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          const Text('مرتجعات للمورّد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          if (parties.returnsOf(supplierId).isEmpty)
+            const Padding(padding: EdgeInsets.all(12), child: Text('لا توجد مرتجعات')),
+          for (final r in parties.returnsOf(supplierId))
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.assignment_return, color: AppColors.warning),
+                title: Text('${r.reason} — ${Fmt.money(r.total, cur)}'),
+                subtitle: Text(
+                    '${Fmt.date(r.date)} • ${r.items.map((i) => '${i.productName} × ${i.quantity}').join('، ')}'),
               ),
             ),
           const SizedBox(height: 12),

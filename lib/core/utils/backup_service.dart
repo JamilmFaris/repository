@@ -60,7 +60,15 @@ class BackupService {
       currency: s['currency'] as String?,
       dark: s['dark'] as bool?,
       dollarRate: (s['dollarRate'] as num?)?.toDouble(),
+      dollarBuyRate: (s['dollarBuyRate'] as num?)?.toDouble(),
       themeColor: (s['themeColor'] as num?)?.toInt(),
+      repPhone: s['repPhone'] as String?,
+      distPhone: s['distPhone'] as String?,
+      lowStock: (s['lowStock'] as num?)?.toInt(),
+      appStyle: s['appStyle'] as String?,
+      refCapitalUsd: (s['refCapitalUsd'] as num?)?.toDouble(),
+      refCapitalRate: (s['refCapitalRate'] as num?)?.toDouble(),
+      refCapitalDate: s['refCapitalDate'] as String?,
     );
   }
 }

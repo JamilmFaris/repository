@@ -13,6 +13,9 @@ class InvoiceItem {
 
   /// سطر هدية (عرض): سعره 0 وتكلفته تُسجَّل في مصاريف «العروض».
   final bool isGift;
+
+  /// نوع الهدية: 'mine' (على حسابي: تكلفتها مصروف) | 'company' (تدفعها الشركة: مجانية).
+  final String giftType;
   int returnedQty;
 
   InvoiceItem({
@@ -26,6 +29,7 @@ class InvoiceItem {
     this.discountType = 'none',
     this.discountValue = 0,
     this.isGift = false,
+    this.giftType = 'mine',
     this.returnedQty = 0,
   });
 
@@ -58,8 +62,11 @@ class InvoiceItem {
   /// تكلفة الأصناف المباعة (الهدايا تكلفتها في المصاريف لا هنا).
   double get totalBuy => isGift ? 0 : buyPrice * keptQty;
 
-  /// تكلفة الهدية (للمصاريف).
-  double get giftCost => isGift ? buyPrice * keptQty : 0;
+  bool get isCompanyGift => isGift && giftType == 'company';
+  bool get isMyGift => isGift && giftType != 'company';
+
+  /// تكلفة هديتي الشخصية فقط (تذهب لمصاريف «العروض»)؛ هدايا الشركة مجانية.
+  double get giftCost => isMyGift ? buyPrice * keptQty : 0;
 
   double get profit => totalSell - totalBuy;
 
@@ -74,6 +81,7 @@ class InvoiceItem {
     'discountType': discountType,
     'discountValue': discountValue,
     'isGift': isGift ? 1 : 0,
+    'giftType': giftType,
     'returnedQty': returnedQty,
   };
 
@@ -88,6 +96,7 @@ class InvoiceItem {
     discountType: m['discountType'] ?? 'none',
     discountValue: ((m['discountValue'] ?? 0) as num).toDouble(),
     isGift: (m['isGift'] ?? 0) == 1,
+    giftType: m['giftType'] ?? 'mine',
     returnedQty: m['returnedQty'] ?? 0,
   );
 }

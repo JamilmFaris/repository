@@ -2,6 +2,7 @@ import '../../data/models/invoice_item.dart';
 import 'formatters.dart';
 
 /// نصوص مشتركة بين شاشة الفاتورة والـPDF.
+/// على الفاتورة الموجَّهة للصيدلاني تظهر الهدية «هدية» فقط (بدون تفصيل الحساب).
 String invoiceItemName(InvoiceItem it) =>
     it.isGift ? '${it.productName} (هدية)' : it.productName;
 

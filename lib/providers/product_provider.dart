@@ -21,7 +21,9 @@ class ProductProvider extends ChangeNotifier {
     return list;
   }
 
-  List<Product> get lowStock => _products.where((p) => p.quantity > 0 && p.quantity <= 5).toList();
+  /// أصناف وصلت للحد الأدنى (أكبر من 0 وأقل من أو تساوي الحد).
+  List<Product> lowStockFor(int threshold) =>
+      _products.where((p) => p.quantity > 0 && p.quantity <= threshold).toList();
   List<Product> get outOfStock => _products.where((p) => p.quantity <= 0).toList();
 
   void setSearch(String v) { _search = v; notifyListeners(); }
@@ -48,14 +50,38 @@ class ProductProvider extends ChangeNotifier {
     await loadProducts();
   }
 
-  /// إعادة تسعير أصناف الدولار عند تغيّر سعر الصرف.
-  Future<void> repriceAll(double rate) async {
+  /// إعادة تسعير أصناف الدولار عند تغيّر سعر الصرف: الشراء بسعر شراء الدولار،
+  /// والمبيع بسعر بيع الدولار، مع احترام السعر المثبَّت (لا يتغيّر).
+  Future<void> repriceAll(double buyRate, double sellRate) async {
     for (final p in _products.where((p) => p.isUsd)) {
-      await _repo.update(p.copyWith(
-        buyPrice: Pricing.usdToSyp(p.buyPriceUsd, rate),
-        sellPrice: Pricing.usdToSyp(p.sellPriceUsd, rate),
-      ));
+      await _repo.update(_repriced(p, buyRate, sellRate));
     }
+    await loadProducts();
+  }
+
+  Product _repriced(Product p, double buyRate, double sellRate) => p.copyWith(
+        buyPrice: p.buyLocked || buyRate <= 0
+            ? p.buyPrice
+            : Pricing.usdToSyp(p.buyPriceUsd, buyRate),
+        sellPrice: p.sellLocked || sellRate <= 0
+            ? p.sellPrice
+            : Pricing.usdToSyp(p.sellPriceUsd, sellRate),
+      );
+
+  /// تفعيل تثبيت السعر (شراء/بيع/كليهما) وحفظ سعر الصرف الحالي داخل الصنف.
+  Future<void> setLock(Product p, String mode, double buyRate, double sellRate) async {
+    await _repo.update(p.copyWith(
+      lockMode: mode,
+      lockBuyRate: buyRate,
+      lockSellRate: sellRate,
+    ));
+    await loadProducts();
+  }
+
+  /// إلغاء التثبيت: يعود الصنف لمتابعة سعر الصرف الحالي فوراً.
+  Future<void> unlock(Product p, double buyRate, double sellRate) async {
+    final unlocked = p.copyWith(lockMode: 'none', lockBuyRate: 0, lockSellRate: 0);
+    await _repo.update(_repriced(unlocked, buyRate, sellRate));
     await loadProducts();
   }
 

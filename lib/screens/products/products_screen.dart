@@ -8,6 +8,8 @@ import '../../providers/report_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/app_drawer.dart';
+import '../../widgets/motion.dart';
+import '../../widgets/price_lock_sheet.dart';
 import '../../widgets/product_card.dart';
 import 'add_edit_product_screen.dart';
 
@@ -42,7 +44,7 @@ class ProductsScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          if (p.lowStock.isNotEmpty || p.outOfStock.isNotEmpty)
+          if (p.lowStockFor(settings.lowStock).isNotEmpty || p.outOfStock.isNotEmpty)
             Container(
               width: double.infinity,
               color: AppColors.warning.withOpacity(0.15),
@@ -53,7 +55,7 @@ class ProductsScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'تنبيه: ${p.lowStock.length} صنف منخفض و ${p.outOfStock.length} صنف منتهي',
+                      'تنبيه: ${p.lowStockFor(settings.lowStock).length} صنف منخفض و ${p.outOfStock.length} صنف منتهي',
                       style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -80,15 +82,20 @@ class ProductsScreen extends StatelessWidget {
                     itemCount: p.products.length,
                     itemBuilder: (_, i) {
                       final prod = p.products[i];
-                      return ProductCard(
+                      return FadeSlideIn(
+                        index: i,
+                        child: ProductCard(
                         product: prod,
                         currency: settings.currency,
+                        lowThreshold: settings.lowStock,
+                        onLock: prod.isUsd ? () => showPriceLockSheet(context, prod) : null,
                         soldQty: soldMap[prod.id] ?? 0,
                         totalProfit: profitMap[prod.id] ?? 0,
                         onQuantityChanged: (q) => p.updateQuantity(prod, q),
                         onEdit: () => Navigator.push(context,
                             MaterialPageRoute(builder: (_) => AddEditProductScreen(product: prod))),
                         onDelete: () => _confirmDelete(context, p, prod),
+                        ),
                       );
                     },
                   ),

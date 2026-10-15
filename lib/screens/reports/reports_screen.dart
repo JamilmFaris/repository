@@ -2,16 +2,19 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/capital.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/period.dart';
 import '../../core/utils/report_data.dart';
 import '../../core/utils/report_pdf.dart';
+import '../../providers/cash_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/app_drawer.dart';
+import '../../widgets/movement_card.dart';
 import '../../widgets/period_selector.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -22,6 +25,18 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   PeriodRange _range = PeriodRange.of(PeriodKind.month, DateTime.now());
+  List<CapitalSnapshot> _snaps = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSnapshots();
+  }
+
+  Future<void> _loadSnapshots() async {
+    final l = await CapitalSnapshots.all();
+    if (mounted) setState(() => _snaps = l);
+  }
 
   static const _palette = [
     Color(0xFF2563EB), Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFFEF4444),
@@ -37,20 +52,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final settings = context.watch<SettingsProvider>();
     final cur = settings.currency;
 
-    final data = ReportData(range: _range, allInvoices: inv.invoices, allExpenses: exp.expenses);
-
-    final stockBuy = prod.products.fold<double>(0, (s, p) => s + p.buyPrice * p.quantity);
-    final stockSell = prod.products.fold<double>(0, (s, p) => s + p.sellPrice * p.quantity);
-    final customersOwed = inv.invoices.fold<double>(0, (s, i) => s + i.owed) -
-        parties.customerPayments.fold<double>(0, (s, p) => s + p.amount);
-    final suppliersOwed =
-        parties.suppliers.fold<double>(0, (s, x) => s + parties.supplierBalance(x.id!));
-    final capital = CapitalSummary(
-      stockBuy: stockBuy,
-      stockSell: stockSell,
-      customersOwed: customersOwed < 0 ? 0 : customersOwed,
-      suppliersOwed: suppliersOwed < 0 ? 0 : suppliersOwed,
+    final data = ReportData(
+      range: _range,
+      allInvoices: inv.invoices,
+      allExpenses: exp.expenses,
+      allPurchases: parties.purchases,
     );
+
+    final capital = CapitalSummary.compute(
+      products: prod.products,
+      invoices: inv.invoices,
+      parties: parties,
+      cash: context.watch<CashProvider>().balance,
+    );
+    final sell = settings.dollarRate;
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -75,9 +90,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24, top: 8),
         children: [
+          _itemsCard(prod.products, settings.lowStock),
           PeriodSelector(onChanged: (r) => setState(() => _range = r)),
           const SizedBox(height: 8),
-          _netBox(data, cur),
+          _netBox(data, cur, sell),
+          _giftsBox(data, cur),
+          _performanceBox(data, settings, cur),
           Padding(
             padding: const EdgeInsets.all(12),
             child: GridView.count(
@@ -90,10 +108,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 _statCard('إجمالي المبيعات', Fmt.money(data.sales, cur), Icons.attach_money, _palette[0]),
                 _statCard('تكلفة البضاعة', Fmt.money(data.cost, cur), Icons.shopping_cart, AppColors.warning),
-                _statCard('الربح قبل المصاريف', Fmt.money(data.grossProfit, cur), Icons.trending_up, AppColors.success),
+                _statCard('الربح قبل المصاريف', '${Fmt.money(data.grossProfit, cur)}${_usd(data.grossProfit, sell)}', Icons.trending_up, AppColors.success),
                 _statCard('إجمالي المصاريف', Fmt.money(data.expensesTotal, cur), Icons.payments, AppColors.danger),
                 _statCard('الخصومات الممنوحة', Fmt.money(data.discountsTotal, cur), Icons.percent, _palette[4]),
                 _statCard('عدد الفواتير', '${data.invoices.length}', Icons.receipt, _palette[5]),
+                _statCard('شحن وجمارك الشراء', Fmt.money(data.shippingTotal, cur), Icons.local_shipping, _palette[7]),
               ],
             ),
           ),
@@ -103,7 +122,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             _chartCard('توزيع المصاريف', _expensesPie(data), height: 200),
           _listCard(
             'الأصناف الأكثر ربحاً',
-            [for (final p in data.topByProfit()) MapEntry('${p.name} (${p.qty})', Fmt.money(p.profit, cur))],
+            [for (final p in data.topByProfit()) MapEntry('${p.name} (${p.qty})', '${Fmt.money(p.profit, cur)}${_usd(p.profit, sell)}')],
           ),
           _listCard(
             'الأصناف الأكثر مبيعاً',
@@ -113,6 +132,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             _chartCard('ربح كل صنف', _barChart([
               for (final p in data.topByProfit(6)) MapEntry(p.name, p.profit),
             ], _palette[1])),
+          _capitalHistory(settings),
+          const MovementCard(),
           _listCard(
             'أفضل الزبائن',
             [for (final c in data.topCustomers()) MapEntry(c.key, Fmt.money(c.value, cur))],
@@ -123,7 +144,171 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   /// صندوق: ربحت X — خُصم منها ... = الصافي Y
-  Widget _netBox(ReportData d, String cur) {
+  /// ما يعادل المبلغ بالدولار بسعر بيع الدولار (المرجع الثابت للربح).
+  String _usd(double v, double sellRate) =>
+      sellRate > 0 ? ' ≈ \$${Fmt.num2(double.parse((v / sellRate).toStringAsFixed(2)))}' : '';
+
+  /// 📦 عدد الأصناف: الإجمالي + النافدة + التي وصلت للحد الأدنى.
+  Widget _itemsCard(List products, int low) {
+    final total = products.length;
+    final out = products.where((p) => p.quantity <= 0).length;
+    final atMin = products.where((p) => p.quantity > 0 && p.quantity <= low).length;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.inventory_2, color: AppColors.primary, size: 22),
+              SizedBox(width: 6),
+              Text('عدد الأصناف', style: TextStyle(fontSize: 12, color: AppColors.grey)),
+            ]),
+            const SizedBox(height: 4),
+            Text('$total',
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary)),
+            const SizedBox(height: 4),
+            Text('نفدت كميتها: $out',
+                style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+            Text('وصلت للحد الأدنى (≤ $low): $atMin',
+                style: const TextStyle(fontSize: 12, color: AppColors.warning)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 🎁 الهدايا: سطران ثابتان (حسابي / الشركة).
+  Widget _giftsBox(ReportData d, String cur) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.card_giftcard, size: 18, color: Color(0xFF8B5CF6)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('هدايا على حسابي: ${d.giftsMineQty} — تكلفتها ${Fmt.money(d.giftsMineCost, cur)}',
+                    style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              const Icon(Icons.card_giftcard, size: 18, color: Color(0xFF2563EB)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('هدايا الشركة: ${d.giftsCompanyQty} — مجانية',
+                    style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 💼 رأس المال والأداء (طريقة رأس المال المُعاد تقييمه).
+  Widget _performanceBox(ReportData d, SettingsProvider s, String cur) {
+    Widget row(String k, String v, {bool bold = false, Color? color}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(child: Text(k, style: TextStyle(fontWeight: bold ? FontWeight.bold : null))),
+              Text(v,
+                  style: TextStyle(
+                      fontWeight: bold ? FontWeight.bold : null, color: color, fontSize: bold ? 15 : 14)),
+            ],
+          ),
+        );
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: s.refCapitalUsd <= 0
+            ? const Text('رأس المال والأداء: ثبّت رأس المال من الإعدادات (تثبيت رأس المال الحالي) ليظهر هنا.',
+                style: TextStyle(color: AppColors.grey))
+            : Builder(builder: (_) {
+                final refSyp = s.refCapitalUsd * s.dollarBuyRate;
+                final gross = d.sales - refSyp;
+                final net = gross - d.expensesTotal;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(children: [
+                      Icon(Icons.account_balance_wallet, size: 20),
+                      SizedBox(width: 6),
+                      Text('رأس المال والأداء',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ]),
+                    const SizedBox(height: 8),
+                    row('رأس المال بالدولار', '\$${Fmt.num2(s.refCapitalUsd)}'),
+                    row('سعر الصرف الحالي', 'شراء ${Fmt.num2(s.dollarBuyRate)} / بيع ${Fmt.num2(s.dollarRate)}'),
+                    row('رأس المال بالليرة (بعد إعادة التقييم)', Fmt.money(refSyp, cur)),
+                    row('تاريخ آخر تثبيت',
+                        s.refCapitalDate == null ? '-' : Fmt.date(s.refCapitalDate!)),
+                    const Divider(),
+                    row('المبيعات', Fmt.money(d.sales, cur)),
+                    row('رأس المال المرجعي', Fmt.money(refSyp, cur)),
+                    row('الربح الإجمالي', Fmt.money(gross, cur),
+                        bold: true, color: gross >= 0 ? AppColors.success : AppColors.danger),
+                    row('المصاريف', Fmt.money(d.expensesTotal, cur)),
+                    const Divider(),
+                    row('الربح الصافي بالليرة', Fmt.money(net, cur),
+                        bold: true, color: net >= 0 ? AppColors.success : AppColors.danger),
+                    row('الربح الصافي بالدولار',
+                        s.dollarRate > 0 ? '\$${Fmt.num2(double.parse((net / s.dollarRate).toStringAsFixed(2)))}' : '-',
+                        bold: true),
+                  ],
+                );
+              }),
+      ),
+    );
+  }
+
+  Widget _capitalHistory(SettingsProvider s) {
+    final last = _snaps.length > 12 ? _snaps.sublist(_snaps.length - 12) : _snaps;
+    if (last.length < 2) {
+      return const SizedBox.shrink();
+    }
+    return _chartCard(
+      'تطور رأس المال بالدولار (12 شهراً)',
+      LineChart(LineChartData(
+        gridData: const FlGridData(show: true),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+          topTitles: const AxisTitles(),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: (last.length / 5).ceilToDouble().clamp(1, 100),
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= last.length) return const SizedBox();
+                return Text(last[i].month.substring(2), style: const TextStyle(fontSize: 10));
+              },
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: [for (var i = 0; i < last.length; i++) FlSpot(i.toDouble(), last[i].capitalUsd)],
+            isCurved: true,
+            color: _palette[1],
+            barWidth: 3,
+          ),
+        ],
+      )),
+    );
+  }
+
+  Widget _netBox(ReportData d, String cur, double sell) {
     final cats = d.expensesByCategory;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -135,7 +320,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ربحت ${Fmt.money(d.grossProfit, cur)}',
+            Text('ربحت ${Fmt.money(d.grossProfit, cur)}${_usd(d.grossProfit, sell)}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             if (cats.isEmpty)
@@ -161,7 +346,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 const Text('= الربح الصافي النهائي',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(Fmt.money(d.netProfit, cur),
+                Text('${Fmt.money(d.netProfit, cur)}${_usd(d.netProfit, sell)}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -199,6 +384,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             row('البضاعة كاملة بسعر الشراء', c.stockBuy),
             row('البضاعة كاملة بسعر البيع', c.stockSell),
             row('الربح المتوقع من المخزون', c.expectedProfit),
+            row('رصيد الصندوق (الدرج)', c.cash),
             row('ديون الزبائن (نقدية متوقعة)', c.customersOwed),
             row('مستحقات الموردين', c.suppliersOwed),
             const Divider(),

@@ -3,27 +3,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'capital.dart';
 import 'formatters.dart';
 import 'report_data.dart';
-
-/// أرقام رأس المال (لا تعتمد على الفترة).
-class CapitalSummary {
-  final double stockBuy;
-  final double stockSell;
-  final double customersOwed;
-  final double suppliersOwed;
-  CapitalSummary({
-    required this.stockBuy,
-    required this.stockSell,
-    required this.customersOwed,
-    required this.suppliersOwed,
-  });
-
-  double get expectedProfit => stockSell - stockBuy;
-
-  /// رأس المال الحالي = المخزون بسعر الشراء + النقدية المتوقعة (ديون الزبائن).
-  double get capital => stockBuy + customersOwed;
-}
 
 class ReportPdf {
   static pw.Font? _regular;

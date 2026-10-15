@@ -43,7 +43,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   String? _couponCode;
 
   /// أصناف عدّل المستخدم هديّتها يدوياً (لا تُعاد حسابها تلقائياً).
-  final Set<int> _manualGift = {};
+  final Set<String> _manualGift = {};
+
+  static const _mine = 'mine', _company = 'company';
+  static const _purple = Color(0xFF8B5CF6), _blue = Color(0xFF2563EB);
+  String _key(int productId, String type) => '$productId:$type';
 
   /// الكميات الباقية في الفاتورة المحفوظة (تُحسب متاحة عند التعديل).
   final Map<int, int> _oldKept = {};
@@ -77,10 +81,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
           discountType: it.discountType,
           discountValue: it.discountValue,
           isGift: it.isGift,
+          giftType: it.giftType,
           returnedQty: it.returnedQty,
         ));
         _oldKept[it.productId] = (_oldKept[it.productId] ?? 0) + it.keptQty;
-        if (it.isGift) _manualGift.add(it.productId);
+        if (it.isGift) _manualGift.add(_key(it.productId, it.giftType));
       }
     } else {
       context.read<InvoiceProvider>().nextNumber().then((n) {
@@ -157,9 +162,20 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       .where((i) => i.productId == productId && !i.isGift)
       .fold(0, (s, i) => s + i.keptQty);
 
-  int _giftQty(int productId) => _items
-      .where((i) => i.productId == productId && i.isGift)
+  int _giftQty(int productId, String type) => _items
+      .where((i) => i.productId == productId && i.isGift && i.giftType == type)
       .fold(0, (s, i) => s + i.keptQty);
+
+  /// عدد الهدايا المطلوب لنوع عرض: ⌊المباع ÷ N⌋ × M، أو الحالي إن عُدِّل يدوياً.
+  int _wantGifts(Product prod, String type, int paid) {
+    final buy = type == _mine ? prod.offerBuyQty : prod.companyBuyQty;
+    final free = type == _mine ? prod.offerFreeQty : prod.companyFreeQty;
+    final has = type == _mine ? prod.hasOffer : prod.hasCompanyOffer;
+    if (!has || _manualGift.contains(_key(prod.id!, type))) {
+      return _giftQty(prod.id!, type);
+    }
+    return (paid ~/ buy) * free;
+  }
 
   void _addItem() {
     if (_selectedProductId == null) return;
@@ -175,15 +191,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     }
   }
 
-  /// يضيف صنفاً (مع هداياه التلقائية). يعيد false عند نقص المخزون.
+  /// يضيف صنفاً (مع هداياه التلقائية بنوعيها). يعيد false عند نقص المخزون.
   bool _addProduct(Product prod, int qty, {bool silent = false}) {
     final available = prod.quantity + (_oldKept[prod.id] ?? 0);
     final newPaid = _paidQty(prod.id!) + qty;
-    final wantGifts = prod.hasOffer && !_manualGift.contains(prod.id)
-        ? (newPaid ~/ prod.offerBuyQty) * prod.offerFreeQty
-        : _giftQty(prod.id!);
-    if (newPaid + wantGifts > available) {
-      if (!silent) _error('الكمية المتوفرة $available فقط (مع الهدايا ${newPaid + wantGifts})');
+    final mine = _wantGifts(prod, _mine, newPaid);
+    final co = _wantGifts(prod, _company, newPaid);
+    if (newPaid + mine + co > available) {
+      if (!silent) {
+        _error('الكمية المتوفرة $available فقط (مع الهدايا ${newPaid + mine + co})');
+      }
       return false;
     }
     _items.add(InvoiceItem(
@@ -193,15 +210,23 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       buyPrice: prod.buyPrice,
       sellPrice: prod.sellPrice,
     ));
-    if (prod.hasOffer && !_manualGift.contains(prod.id)) {
-      _setGift(prod.id!, prod.name, prod.buyPrice, wantGifts);
-    }
+    _syncGifts(prod, newPaid);
     return true;
   }
 
-  /// يضبط سطر الهدية التلقائي لصنف (يُنشئه أو يعدّله أو يحذفه).
-  void _setGift(int productId, String name, double buyPrice, int qty) {
-    final idx = _items.indexWhere((i) => i.productId == productId && i.isGift);
+  void _syncGifts(Product prod, int paid) {
+    if (prod.hasOffer && !_manualGift.contains(_key(prod.id!, _mine))) {
+      _setGift(prod, _mine, _wantGifts(prod, _mine, paid));
+    }
+    if (prod.hasCompanyOffer && !_manualGift.contains(_key(prod.id!, _company))) {
+      _setGift(prod, _company, _wantGifts(prod, _company, paid));
+    }
+  }
+
+  /// يضبط سطر الهدية التلقائي لصنف ونوع (يُنشئه أو يعدّله أو يحذفه).
+  void _setGift(Product prod, String type, int qty) {
+    final idx = _items.indexWhere(
+        (i) => i.productId == prod.id && i.isGift && i.giftType == type);
     if (qty <= 0) {
       if (idx >= 0) _items.removeAt(idx);
       return;
@@ -210,12 +235,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       _items[idx].quantity = qty + _items[idx].returnedQty;
     } else {
       _items.add(InvoiceItem(
-        productId: productId,
-        productName: name,
+        productId: prod.id!,
+        productName: prod.name,
         quantity: qty,
-        buyPrice: buyPrice,
+        buyPrice: prod.buyPrice,
         sellPrice: 0,
         isGift: true,
+        giftType: type,
       ));
     }
   }
@@ -226,10 +252,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     setState(() {
       _items.removeAt(idx);
       if (it.isGift) {
-        _manualGift.add(it.productId); // حذف الهدية يدوياً: لا تعاد تلقائياً
-      } else if (prod != null && prod.hasOffer && !_manualGift.contains(prod.id)) {
-        final gifts = (_paidQty(prod.id!) ~/ prod.offerBuyQty) * prod.offerFreeQty;
-        _setGift(prod.id!, prod.name, prod.buyPrice, gifts);
+        _manualGift.add(_key(it.productId, it.giftType)); // حذف يدوي: لا تعاد تلقائياً
+      } else if (prod != null) {
+        _syncGifts(prod, _paidQty(prod.id!));
       }
     });
   }
@@ -241,7 +266,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('كمية الهدية: ${it.productName}'),
+        title: Text('كمية الهدية (${it.giftType == _company ? 'الشركة' : 'حسابي'}): ${it.productName}'),
         content: TextField(
           controller: c,
           autofocus: true,
@@ -261,12 +286,15 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     if (v == null || v < 0 || !mounted) return;
     final prod = context.read<ProductProvider>().byId(it.productId);
     final available = (prod?.quantity ?? 0) + (_oldKept[it.productId] ?? 0);
-    if (_paidQty(it.productId) + v > available) {
+    final otherGifts = _items
+        .where((i) => i.productId == it.productId && i.isGift && !identical(i, it))
+        .fold<int>(0, (s, i) => s + i.keptQty);
+    if (_paidQty(it.productId) + otherGifts + v > available) {
       _error('الكمية المتوفرة $available فقط');
       return;
     }
     setState(() {
-      _manualGift.add(it.productId);
+      _manualGift.add(_key(it.productId, it.giftType));
       if (v == 0) {
         _items.removeAt(idx);
       } else {
@@ -524,7 +552,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     items: products.map((p) => DropdownMenuItem(
                       value: p.id,
                       child: Text(
-                        '${p.name} (${p.quantity} متوفر)${p.hasOffer ? ' 🎁 كل ${p.offerBuyQty}+${p.offerFreeQty}' : ''}',
+                        '${p.name} (${p.quantity} متوفر)${p.hasOffer ? ' 🎁 كل ${p.offerBuyQty}+${p.offerFreeQty}' : ''}${p.hasCompanyOffer ? ' 🎁ش كل ${p.companyBuyQty}+${p.companyFreeQty}' : ''}',
                         overflow: TextOverflow.ellipsis,
                       ),
                     )).toList(),
@@ -627,23 +655,27 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     } else {
       discText = '';
     }
+    final giftColor = it.giftType == _company ? _blue : _purple;
+    final giftLabel = it.giftType == _company ? 'الشركة' : 'حسابي';
     return Card(
-      color: it.isGift ? AppColors.success.withValues(alpha: 0.08) : null,
+      color: it.isGift ? giftColor.withValues(alpha: 0.08) : null,
       child: ListTile(
         title: Row(
           children: [
             Flexible(child: Text(it.productName)),
             if (it.isGift) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.card_giftcard, size: 16, color: AppColors.success),
-              const Text(' هدية', style: TextStyle(color: AppColors.success, fontSize: 12)),
+              Icon(Icons.card_giftcard, size: 16, color: giftColor),
+              Text(' هدية — $giftLabel',
+                  style: TextStyle(color: giftColor, fontSize: 12, fontWeight: FontWeight.bold)),
             ],
           ],
         ),
         subtitle: Text(it.isGift
-            ? '${it.keptQty} مجاناً'
+            ? '${it.keptQty} مجاناً ($giftLabel)'
             : '${it.quantity} × ${Fmt.money(it.sellPrice, cur)}$discText'
-              '${it.returnedQty > 0 ? ' • مرتجع ${it.returnedQty}' : ''}'),
+              '${it.returnedQty > 0 ? ' • مرتجع ${it.returnedQty}' : ''}',
+            style: it.isGift ? TextStyle(color: giftColor) : null),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

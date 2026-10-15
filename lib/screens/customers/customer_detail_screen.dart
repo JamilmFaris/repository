@@ -8,6 +8,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/party_dialogs.dart';
 import '../invoices/invoice_detail_screen.dart';
+import '../receipts/receipt_form_screen.dart';
 import 'customers_screen.dart';
 
 class CustomerDetailScreen extends StatelessWidget {
@@ -37,6 +38,16 @@ class CustomerDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(customer.name),
         actions: [
+          IconButton(
+            tooltip: 'إرسال وصل دفع',
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ReceiptFormScreen(customer: customer, suggestedAmount: owed),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {

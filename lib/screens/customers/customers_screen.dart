@@ -7,7 +7,9 @@ import '../../providers/party_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/motion.dart';
 import '../../widgets/party_dialogs.dart';
+import '../receipts/receipt_form_screen.dart';
 import 'customer_detail_screen.dart';
 
 /// المتبقي على زبون = ديون فواتيره − دفعاته.
@@ -48,6 +50,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
       body: Column(
         children: [
           Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.receipt_long),
+                label: const Text('إرسال وصل دفع'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReceiptFormScreen()),
+                ),
+              ),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
@@ -71,21 +87,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     itemBuilder: (_, i) {
                       final c = list[i];
                       final owed = customerOwed(c.id!, inv, parties);
-                      return Card(
-                        child: ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.person)),
-                          title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: c.phone.isEmpty ? null : Text(c.phone),
-                          trailing: Text(
-                            owed > 0 ? 'عليه ${Fmt.money(owed, cur)}' : 'لا دَين',
-                            style: TextStyle(
-                              color: owed > 0 ? AppColors.danger : AppColors.success,
-                              fontWeight: FontWeight.bold,
+                      return FadeSlideIn(
+                        index: i,
+                        child: StatusCard(
+                          statusColor: owed > 0 ? AppColors.danger : AppColors.success,
+                          child: ListTile(
+                            leading: PartyAvatar(name: c.name),
+                            title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: c.phone.isEmpty ? null : Text(c.phone),
+                            trailing: Text(
+                              owed > 0 ? 'عليه ${Fmt.money(owed, cur)}' : 'لا دَين',
+                              style: TextStyle(
+                                color: owed > 0 ? AppColors.danger : AppColors.success,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => CustomerDetailScreen(customerId: c.id!)),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => CustomerDetailScreen(customerId: c.id!)),
+                            ),
                           ),
                         ),
                       );

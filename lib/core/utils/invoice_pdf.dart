@@ -23,30 +23,23 @@ class InvoicePdf {
     final strong = pw.TextStyle(font: bold, fontSize: 9, fontWeight: pw.FontWeight.bold);
     const border = PdfColors.grey600;
 
-    // ترتيب الأعمدة (من اليمين): القيمة الإجمالية | البيان | العدد | السعر
-    pw.Widget cell(String text, {int flex = 1, bool header = false, pw.TextAlign? align}) =>
-        pw.Expanded(
-          flex: flex,
-          child: pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: border, width: 0.5),
-              color: header ? PdfColors.grey300 : null,
-            ),
-            child: pw.Text(text,
-                style: header ? strong : base,
-                textAlign: align ?? pw.TextAlign.center),
-          ),
+    // ترتيب الأعمدة (من اليمين): القيمة الإجمالية | البيان | العدد | السعر.
+    // pw.Table لا يعكس الاتجاه تلقائياً، فنضع الأعمدة معكوسة (السعر أولاً من اليسار).
+    pw.Widget tcell(String text, {bool header = false, pw.TextAlign? align}) => pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+          child: pw.Text(text,
+              style: header ? strong : base, textAlign: align ?? pw.TextAlign.center),
         );
 
-    pw.Widget row(String total, String name, String qty, String price, {bool header = false}) =>
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+    pw.TableRow trow(String total, String name, String qty, String price,
+            {bool header = false}) =>
+        pw.TableRow(
+          decoration: header ? const pw.BoxDecoration(color: PdfColors.grey300) : null,
           children: [
-            cell(total, flex: 3, header: header),
-            cell(name, flex: 5, header: header, align: pw.TextAlign.right),
-            cell(qty, flex: 2, header: header),
-            cell(price, flex: 3, header: header),
+            tcell(price, header: header),
+            tcell(qty, header: header),
+            tcell(name, header: header, align: pw.TextAlign.right),
+            tcell(total, header: header),
           ],
         );
 
@@ -63,6 +56,10 @@ class InvoicePdf {
         pw.Center(child: pw.Text(s.storeName, style: pw.TextStyle(font: bold, fontSize: 15, fontWeight: pw.FontWeight.bold))),
         if (s.phone.isNotEmpty)
           pw.Center(child: pw.Text('هاتف: ${s.phone}', style: base, textDirection: pw.TextDirection.rtl)),
+        if (s.repPhone.isNotEmpty)
+          pw.Center(child: pw.Text('المندوب: ${s.repPhone}', style: base)),
+        if (s.distPhone.isNotEmpty)
+          pw.Center(child: pw.Text('الموزع: ${s.distPhone}', style: base)),
         if (s.address.isNotEmpty) pw.Center(child: pw.Text(s.address, style: base)),
         pw.SizedBox(height: 6),
         pw.Row(
@@ -75,16 +72,30 @@ class InvoicePdf {
         pw.SizedBox(height: 3),
         pw.Text('الصيدلاني/ة المحترم/ة: ${inv.customerName}', style: strong),
         pw.SizedBox(height: 6),
-        row('القيمة الإجمالية', 'البيان', 'العدد', 'السعر', header: true),
-        ...inv.items.map((it) {
-          final note = invoiceItemNote(it, s.currency);
-          return row(
-            Fmt.num2(it.totalSell),
-            note == null ? invoiceItemName(it) : '${invoiceItemName(it)}\n$note',
-            '${it.quantity}',
-            Fmt.num2(it.sellPrice),
-          );
-        }),
+        pw.Table(
+          border: pw.TableBorder.all(color: border, width: 0.5),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(3),
+            1: pw.FlexColumnWidth(2),
+            2: pw.FlexColumnWidth(5),
+            3: pw.FlexColumnWidth(3),
+          },
+          children: [
+            trow('القيمة الإجمالية', 'البيان', 'العدد', 'السعر', header: true),
+            for (final it in inv.items)
+              trow(
+                Fmt.num2(it.totalSell),
+                () {
+                  final note = invoiceItemNote(it, s.currency);
+                  return note == null
+                      ? invoiceItemName(it)
+                      : '${invoiceItemName(it)}${String.fromCharCode(10)}$note';
+                }(),
+                '${it.quantity}',
+                Fmt.num2(it.sellPrice),
+              ),
+          ],
+        ),
         pw.Container(
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: border, width: 0.5),

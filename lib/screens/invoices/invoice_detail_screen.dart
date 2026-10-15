@@ -96,9 +96,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               child: Column(
                 children: [
                   _row('التكلفة', Fmt.money(inv.totalCost, settings.currency)),
-                  if (inv.giftCost > 0)
-                    _row('تكلفة الهدايا (مصاريف العروض)',
-                        Fmt.money(inv.giftCost, settings.currency)),
+                  if (inv.items.any((i) => i.isMyGift))
+                    _row('🎁 هدايا على حسابي (${inv.items.where((i) => i.isMyGift).fold<int>(0, (a, i) => a + i.keptQty)} قطعة)',
+                        Fmt.money(inv.giftCost, settings.currency),
+                        color: const Color(0xFF8B5CF6)),
+                  if (inv.items.any((i) => i.isCompanyGift))
+                    _row('🎁 هدايا الشركة (${inv.items.where((i) => i.isCompanyGift).fold<int>(0, (a, i) => a + i.keptQty)} قطعة)',
+                        'مجانية',
+                        color: const Color(0xFF2563EB)),
                   if (refund > 0)
                     _row('مبلغ مسترجع للمرتجعات', Fmt.money(refund, settings.currency)),
                   const Divider(),
@@ -285,6 +290,22 @@ class _Paper extends StatelessWidget {
             ),
             if (settings.phone.isNotEmpty)
               Center(child: Text('هاتف: ${settings.phone}', style: const TextStyle(fontSize: 12))),
+            if (settings.repPhone.isNotEmpty)
+              Center(
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.phone, size: 12),
+                  const SizedBox(width: 4),
+                  Text('المندوب: ${settings.repPhone}', style: const TextStyle(fontSize: 12)),
+                ]),
+              ),
+            if (settings.distPhone.isNotEmpty)
+              Center(
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.phone, size: 12),
+                  const SizedBox(width: 4),
+                  Text('الموزع: ${settings.distPhone}', style: const TextStyle(fontSize: 12)),
+                ]),
+              ),
             if (settings.address.isNotEmpty)
               Center(child: Text(settings.address, style: const TextStyle(fontSize: 12))),
             const Divider(height: 20),

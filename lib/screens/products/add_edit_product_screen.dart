@@ -32,6 +32,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _sell = TextEditingController();
   final _offerBuy = TextEditingController();
   final _offerFree = TextEditingController();
+  final _coBuy = TextEditingController();
+  final _coFree = TextEditingController();
   bool _usd = false;
 
   @override
@@ -48,6 +50,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         _offerBuy.text = '${p.offerBuyQty}';
         _offerFree.text = '${p.offerFreeQty}';
       }
+      if (p.hasCompanyOffer) {
+        _coBuy.text = '${p.companyBuyQty}';
+        _coFree.text = '${p.companyFreeQty}';
+      }
     }
     _buy.addListener(() => setState(() {}));
     _sell.addListener(() => setState(() {}));
@@ -60,10 +66,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
-    final rate = context.read<SettingsProvider>().dollarRate;
-    if (_usd && rate <= 0) {
+    final st = context.read<SettingsProvider>();
+    final buyRate = st.dollarBuyRate, sellRate = st.dollarRate;
+    if (_usd && (buyRate <= 0 || sellRate <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدّد سعر الدولار من الإعدادات أولاً')),
+        const SnackBar(content: Text('حدّد سعري شراء وبيع الدولار من الإعدادات أولاً')),
       );
       return;
     }
@@ -71,18 +78,30 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     final offerBuy = int.tryParse(_latin(_offerBuy.text)) ?? 0;
     final offerFree = int.tryParse(_latin(_offerFree.text)) ?? 0;
     final hasOffer = offerBuy > 0 && offerFree > 0;
+    final coBuy = int.tryParse(_latin(_coBuy.text)) ?? 0;
+    final coFree = int.tryParse(_latin(_coFree.text)) ?? 0;
+    final hasCo = coBuy > 0 && coFree > 0;
+    final old = widget.product;
+    // السعر المثبّت يبقى كما هو ما لم يُعدَّل رقمه بالدولار صراحةً
+    final keepBuy = old != null && _usd && old.isUsd && old.buyLocked && old.buyPriceUsd == buy;
+    final keepSell = old != null && _usd && old.isUsd && old.sellLocked && old.sellPriceUsd == sell;
     final p = Product(
       id: widget.product?.id,
       name: _name.text.trim(),
       quantity: int.parse(_latin(_qty.text)),
-      buyPrice: _usd ? Pricing.usdToSyp(buy, rate) : buy,
-      sellPrice: _usd ? Pricing.usdToSyp(sell, rate) : sell,
+      buyPrice: !_usd ? buy : (keepBuy ? old.buyPrice : Pricing.usdToSyp(buy, buyRate)),
+      sellPrice: !_usd ? sell : (keepSell ? old.sellPrice : Pricing.usdToSyp(sell, sellRate)),
       createdAt: widget.product?.createdAt,
       priceMode: _usd ? 'USD' : 'SYP',
       buyPriceUsd: _usd ? buy : 0,
       sellPriceUsd: _usd ? sell : 0,
       offerBuyQty: hasOffer ? offerBuy : 0,
       offerFreeQty: hasOffer ? offerFree : 0,
+      companyBuyQty: hasCo ? coBuy : 0,
+      companyFreeQty: hasCo ? coFree : 0,
+      lockMode: _usd ? (old?.lockMode ?? 'none') : 'none',
+      lockBuyRate: old?.lockBuyRate ?? 0,
+      lockSellRate: old?.lockSellRate ?? 0,
     );
     final provider = context.read<ProductProvider>();
     final messenger = ScaffoldMessenger.of(context);
@@ -145,18 +164,21 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    s.dollarRate <= 0
-                        ? 'لم يُحدَّد سعر الدولار بعد (من الإعدادات)'
-                        : 'بالسوري (سعر الدولار ${Fmt.num2(s.dollarRate)}): '
-                          'شراء ${Fmt.money(Pricing.usdToSyp(_parse(_buy), s.dollarRate), s.currency)}'
-                          ' — مبيع ${Fmt.money(Pricing.usdToSyp(_parse(_sell), s.dollarRate), s.currency)}',
+                    (s.dollarRate <= 0 || s.dollarBuyRate <= 0)
+                        ? 'لم يُحدَّد سعرا الدولار بعد (من الإعدادات)'
+                        : 'بالسوري: '
+                          'شراء ${Fmt.money(Pricing.usdToSyp(_parse(_buy), s.dollarBuyRate), s.currency)}'
+                          ' (بسعر ${Fmt.num2(s.dollarBuyRate)})'
+                          ' — مبيع ${Fmt.money(Pricing.usdToSyp(_parse(_sell), s.dollarRate), s.currency)}'
+                          ' (بسعر ${Fmt.num2(s.dollarRate)})',
                   ),
                 ),
               ],
               const SizedBox(height: 16),
               const Align(
                 alignment: Alignment.centerRight,
-                child: Text('عرض (اختياري): مع كل N قطع مباعة، M مجاناً', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text('🎁 عرض على حسابي: كل N مباعة ← M هدية (أدفع ثمنها أنا)',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
               ),
               const SizedBox(height: 8),
               Row(
@@ -168,7 +190,27 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(controller: _offerFree, onTap: () => Fmt.selectAll(_offerFree), keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'مجاناً (M)', border: OutlineInputBorder())),
+                      decoration: const InputDecoration(labelText: 'هدية (M)', border: OutlineInputBorder())),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text('🎁 عرض الشركة: كل N مباعة ← M هدية (تدفع الشركة ثمنها)',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(controller: _coBuy, onTap: () => Fmt.selectAll(_coBuy), keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'مع كل (N)', border: OutlineInputBorder())),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(controller: _coFree, onTap: () => Fmt.selectAll(_coFree), keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'هدية (M)', border: OutlineInputBorder())),
                   ),
                 ],
               ),

@@ -25,6 +25,12 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
   final _paid = TextEditingController();
   final _qty = TextEditingController(text: '1');
   final _price = TextEditingController();
+  final _giftQty = TextEditingController();
+  bool _company = false;
+  final _ship = TextEditingController();
+  final _other = TextEditingController();
+  bool _shipUsd = false;
+  bool _otherUsd = false;
   final List<PurchaseItem> _items = [];
 
   @override
@@ -40,6 +46,9 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
     _paid.dispose();
     _qty.dispose();
     _price.dispose();
+    _giftQty.dispose();
+    _ship.dispose();
+    _other.dispose();
     super.dispose();
   }
 
@@ -54,23 +63,64 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
       _error('اختر الصنف وأدخل الكمية والسعر');
       return;
     }
-    final rate = context.read<SettingsProvider>().dollarRate;
+    final rate = context.read<SettingsProvider>().dollarBuyRate;
     if (prod.isUsd && rate <= 0) {
-      _error('حدّد سعر الدولار من الإعدادات أولاً');
+      _error('حدّد سعر شراء الدولار من الإعدادات أولاً');
       return;
     }
+    // عرض الشركة: السعر المدخل هو ثمن القطع المدفوعة، يوزَّع على (المدفوعة + الهدايا)
+    final gifts = _company ? (Fmt.parseNum(_giftQty.text) ?? 0).toInt() : 0;
+    if (_company && gifts <= 0) {
+      _error('أدخل عدد قطع هدية الشركة');
+      return;
+    }
+    final total = qty + gifts;
+    final effective = price * qty / total;
     setState(() {
       _items.add(PurchaseItem(
         productId: prod.id!,
         productName: prod.name,
-        quantity: qty,
-        buyPrice: prod.isUsd ? Pricing.usdToSyp(price, rate) : price,
-        usdPrice: prod.isUsd ? price : null,
+        quantity: total,
+        giftQty: gifts,
+        buyPrice: prod.isUsd ? Pricing.usdToSyp(effective, rate) : effective,
+        usdPrice: prod.isUsd ? effective : null,
       ));
       _productId = null;
       _qty.text = '1';
       _price.clear();
+      _giftQty.clear();
+      _company = false;
     });
+  }
+
+  Widget _extraRow(String label, TextEditingController c, bool usd,
+      ValueChanged<bool> onUsd, String cur) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: c,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onTap: () => Fmt.selectAll(c),
+            decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(value: false, label: Text(cur)),
+            const ButtonSegment(value: true, label: Text('\$')),
+          ],
+          selected: {usd},
+          onSelectionChanged: (v) => onUsd(v.first),
+        ),
+      ],
+    );
   }
 
   Future<void> _save() async {
@@ -78,13 +128,50 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
       _error('اختر المورّد وأضف صنفاً واحداً على الأقل');
       return;
     }
+    // الشحن والجمارك: تُحوَّل للسوري بسعر شراء الدولار إن أُدخلت بالدولار
+    final rate = context.read<SettingsProvider>().dollarBuyRate;
+    final shipV = Fmt.parseNum(_ship.text) ?? 0;
+    final otherV = Fmt.parseNum(_other.text) ?? 0;
+    if (((_shipUsd && shipV > 0) || (_otherUsd && otherV > 0)) && rate <= 0) {
+      _error('حدّد سعر شراء الدولار من الإعدادات أولاً');
+      return;
+    }
+    final ship = _shipUsd ? shipV * rate : shipV;
+    final other = _otherUsd ? otherV * rate : otherV;
+    final extra = ship + other;
+
+    // توزيع نسبي حسب قيمة كل سطر: تزيد تكلفة القطعة الفعلية دون زيادة دَين المورّد
+    var items = _items;
+    if (extra > 0) {
+      final base = _items.fold<double>(0, (s, i) => s + i.total);
+      items = [
+        for (final it in _items)
+          () {
+            final share = base == 0 ? extra / _items.length : extra * it.total / base;
+            return PurchaseItem(
+              productId: it.productId,
+              productName: it.productName,
+              quantity: it.quantity,
+              buyPrice: it.buyPrice,
+              usdPrice: it.usdPrice,
+              giftQty: it.giftQty,
+              extraCost: share,
+              landedUsd: it.usdPrice != null && rate > 0
+                  ? it.usdPrice! + share / it.quantity / rate
+                  : null,
+            );
+          }(),
+      ];
+    }
     final inv = PurchaseInvoice(
       supplierId: _supplierId!,
       number: _number.text.trim(),
       date: _date,
       paidAmount: Fmt.parseNum(_paid.text) ?? 0,
       notes: _notes.text.trim(),
-      items: _items,
+      items: items,
+      shippingCost: ship,
+      otherCost: other,
     );
     final parties = context.read<PartyProvider>();
     final products = context.read<ProductProvider>();
@@ -144,7 +231,10 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2100),
                           );
-                          if (d != null) setState(() => _date = d);
+                          if (d != null) {
+                            setState(() =>
+                                _date = DateTime(d.year, d.month, d.day, _date.hour, _date.minute));
+                          }
                         },
                         child: InputDecorator(
                           decoration: const InputDecoration(
@@ -203,6 +293,23 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                     IconButton.filled(onPressed: _addItem, icon: const Icon(Icons.add)),
                   ],
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('🎁 هل فيها عرض شركة؟'),
+                  subtitle: const Text('الكمية أعلاه = المدفوعة، والسعر يُوزَّع على المدفوعة + الهدايا'),
+                  value: _company,
+                  onChanged: (v) => setState(() => _company = v),
+                ),
+                if (_company)
+                  TextField(
+                    controller: _giftQty,
+                    keyboardType: TextInputType.number,
+                    onTap: () => Fmt.selectAll(_giftQty),
+                    decoration: const InputDecoration(
+                      labelText: 'عدد قطع الهدية (مجانية من الشركة)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 if (_items.isEmpty)
                   const Padding(
@@ -214,7 +321,9 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                     child: ListTile(
                       title: Text(_items[i].productName),
                       subtitle: Text(
-                          '${_items[i].quantity} × ${Fmt.money(_items[i].buyPrice, s.currency)}'
+                          '${_items[i].quantity - _items[i].giftQty}'
+                          '${_items[i].giftQty > 0 ? ' + ${_items[i].giftQty} هدية شركة' : ''}'
+                          ' × ${Fmt.money(_items[i].buyPrice, s.currency)} (تكلفة فعلية)'
                           '${_items[i].usdPrice != null ? ' (\$${Fmt.num2(_items[i].usdPrice!)})' : ''}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -229,6 +338,15 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: 12),
+                const Text('تكاليف إضافية (تُدفع نقداً لجهة أخرى وتدخل في تكلفة القطع)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                _extraRow('تكلفة الشحن والنقل', _ship, _shipUsd,
+                    (v) => setState(() => _shipUsd = v), s.currency),
+                const SizedBox(height: 8),
+                _extraRow('مصاريف إضافية أخرى (عمولات، تخليص، جمارك)', _other, _otherUsd,
+                    (v) => setState(() => _otherUsd = v), s.currency),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _paid,

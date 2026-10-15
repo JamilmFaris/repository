@@ -5,6 +5,7 @@ import '../../core/utils/formatters.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/motion.dart';
 import '../../widgets/party_dialogs.dart';
 import 'supplier_detail_screen.dart';
 
@@ -38,21 +39,27 @@ class SuppliersScreen extends StatelessWidget {
               itemBuilder: (_, i) {
                 final s = list[i];
                 final bal = parties.supplierBalance(s.id!);
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.local_shipping)),
-                    title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: s.phone.isEmpty ? null : Text(s.phone),
-                    trailing: Text(
-                      bal > 0 ? 'له ${Fmt.money(bal, cur)}' : 'لا مستحقات',
-                      style: TextStyle(
-                        color: bal > 0 ? AppColors.danger : AppColors.success,
-                        fontWeight: FontWeight.bold,
+                return FadeSlideIn(
+                  index: i,
+                  child: StatusCard(
+                    statusColor: bal > 0 ? AppColors.danger : AppColors.success,
+                    child: ListTile(
+                      leading: PartyAvatar(name: s.name),
+                      title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: s.phone.isEmpty ? null : Text(s.phone),
+                      trailing: Text(
+                        bal > 0
+                            ? 'له ${Fmt.money(bal, cur)}'
+                            : (bal < 0 ? 'لك ${Fmt.money(-bal, cur)}' : 'لا مستحقات'),
+                        style: TextStyle(
+                          color: bal > 0 ? AppColors.danger : AppColors.success,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => SupplierDetailScreen(supplierId: s.id!)),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => SupplierDetailScreen(supplierId: s.id!)),
+                      ),
                     ),
                   ),
                 );

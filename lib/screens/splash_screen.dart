@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -38,6 +40,10 @@ class _SplashScreenState extends State<SplashScreen> {
             const Text('مخزني',
                 style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+            Text(context.watch<SettingsProvider>().storeName,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
             const Text('إدارة المخزون والمبيعات بسهولة',
                 style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 32),

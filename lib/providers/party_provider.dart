@@ -14,6 +14,7 @@ class PartyProvider extends ChangeNotifier {
   List<PartyPayment> supplierPayments = [];
   List<PurchaseInvoice> purchases = [];
   List<Reservation> reservations = [];
+  List<SupplierReturn> supplierReturns = [];
 
   Future<void> loadAll() async {
     customers = await _repo.customers();
@@ -22,6 +23,7 @@ class PartyProvider extends ChangeNotifier {
     supplierPayments = await _repo.supplierPayments();
     purchases = await _repo.purchases();
     reservations = await _repo.reservations();
+    supplierReturns = await _repo.supplierReturns();
     notifyListeners();
   }
 
@@ -105,7 +107,24 @@ class PartyProvider extends ChangeNotifier {
     final paid = supplierPayments
         .where((p) => p.partyId == supplierId)
         .fold<double>(0, (s, p) => s + p.amount);
-    return bought - paid;
+    // المرتجعات تُنقص الدين؛ والناتج السالب = رصيد لصالحي عند المورّد
+    final returned = supplierReturns
+        .where((r) => r.supplierId == supplierId)
+        .fold<double>(0, (s, r) => s + r.total);
+    return bought - paid - returned;
+  }
+
+  List<SupplierReturn> returnsOf(int supplierId) =>
+      supplierReturns.where((r) => r.supplierId == supplierId).toList();
+
+  Future<void> addSupplierReturn(SupplierReturn r) async {
+    await _repo.addSupplierReturn(r);
+    await loadAll();
+  }
+
+  Future<void> deleteSupplierReturn(int id) async {
+    await _repo.deleteSupplierReturn(id);
+    await loadAll();
   }
 
   Future<void> addPurchase(PurchaseInvoice p) async {

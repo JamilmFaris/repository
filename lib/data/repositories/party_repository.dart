@@ -88,6 +88,11 @@ class PartyRepository {
       }
       await t.delete('purchase_invoices', where: 'supplierId = ?', whereArgs: [id]);
       await t.delete('supplier_payments', where: 'supplierId = ?', whereArgs: [id]);
+      final rets = await t.query('supplier_returns', where: 'supplierId = ?', whereArgs: [id]);
+      for (final r in rets) {
+        await t.delete('supplier_return_items', where: 'returnId = ?', whereArgs: [r['id']]);
+      }
+      await t.delete('supplier_returns', where: 'supplierId = ?', whereArgs: [id]);
       await t.delete('suppliers', where: 'id = ?', whereArgs: [id]);
     });
   }
@@ -145,14 +150,15 @@ class PartyRepository {
       final id = await t.insert('purchase_invoices', p.toMap()..remove('id'));
       for (final it in p.items) {
         await t.insert('purchase_items', it.toMap()..remove('id')..['purchaseId'] = id);
-        if (it.usdPrice != null) {
+        // سعر شراء الصنف = آخر تكلفة فعلية شاملة الشحن والجمارك
+        if (it.landedUsd != null || it.usdPrice != null) {
           await t.rawUpdate(
               'UPDATE products SET quantity = quantity + ?, buyPrice = ?, buyPriceUsd = ? WHERE id = ?',
-              [it.quantity, it.buyPrice, it.usdPrice, it.productId]);
+              [it.quantity, it.landedUnit, it.landedUsd ?? it.usdPrice, it.productId]);
         } else {
           await t.rawUpdate(
               'UPDATE products SET quantity = quantity + ?, buyPrice = ? WHERE id = ?',
-              [it.quantity, it.buyPrice, it.productId]);
+              [it.quantity, it.landedUnit, it.productId]);
         }
       }
     });
@@ -170,6 +176,73 @@ class PartyRepository {
       await t.delete('purchase_items', where: 'purchaseId = ?', whereArgs: [id]);
       await t.delete('supplier_payments', where: 'purchaseId = ?', whereArgs: [id]);
       await t.delete('purchase_invoices', where: 'id = ?', whereArgs: [id]);
+    });
+  }
+
+  // ---------- مرتجعات الموردين ----------
+  Future<List<SupplierReturn>> supplierReturns() async {
+    final db = await _db.database;
+    final rows = await db.query('supplier_returns', orderBy: 'date DESC, id DESC');
+    final result = <SupplierReturn>[];
+    for (final r in rows) {
+      final items = (await db.query('supplier_return_items',
+              where: 'returnId = ?', whereArgs: [r['id']]))
+          .map((m) => SupplierReturnItem(
+                productId: m['productId'] as int,
+                productName: m['productName'] as String,
+                quantity: m['quantity'] as int,
+                unitPrice: (m['unitPrice'] as num).toDouble(),
+              ))
+          .toList();
+      result.add(SupplierReturn(
+        id: r['id'] as int,
+        supplierId: r['supplierId'] as int,
+        date: DateTime.parse(r['date'] as String),
+        reason: r['reason'] as String? ?? '',
+        note: r['note'] as String? ?? '',
+        items: items,
+      ));
+    }
+    return result;
+  }
+
+  /// إرجاع بضاعة لمورّد: تُخصم الكميات من المخزون ويُنقَص دَين المورّد بقيمتها.
+  Future<void> addSupplierReturn(SupplierReturn r) async {
+    final db = await _db.database;
+    await db.transaction((t) async {
+      final id = await t.insert('supplier_returns', {
+        'supplierId': r.supplierId,
+        'date': r.date.toIso8601String(),
+        'reason': r.reason,
+        'note': r.note,
+        'total': r.total,
+      });
+      for (final it in r.items) {
+        await t.insert('supplier_return_items', {
+          'returnId': id,
+          'productId': it.productId,
+          'productName': it.productName,
+          'quantity': it.quantity,
+          'unitPrice': it.unitPrice,
+        });
+        await t.rawUpdate('UPDATE products SET quantity = quantity - ? WHERE id = ?',
+            [it.quantity, it.productId]);
+      }
+    });
+  }
+
+  /// حذف مرتجع: تعود الكميات للمخزون ويعود الدَّين.
+  Future<void> deleteSupplierReturn(int id) async {
+    final db = await _db.database;
+    await db.transaction((t) async {
+      final items =
+          await t.query('supplier_return_items', where: 'returnId = ?', whereArgs: [id]);
+      for (final it in items) {
+        await t.rawUpdate('UPDATE products SET quantity = quantity + ? WHERE id = ?',
+            [it['quantity'], it['productId']]);
+      }
+      await t.delete('supplier_return_items', where: 'returnId = ?', whereArgs: [id]);
+      await t.delete('supplier_returns', where: 'id = ?', whereArgs: [id]);
     });
   }
 

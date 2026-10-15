@@ -11,6 +11,8 @@ class ProductCard extends StatelessWidget {
   final int soldQty;
   final double totalProfit;
   final String currency;
+  final int lowThreshold;
+  final VoidCallback? onLock;
 
   const ProductCard({
     super.key,
@@ -21,11 +23,13 @@ class ProductCard extends StatelessWidget {
     required this.soldQty,
     required this.totalProfit,
     required this.currency,
+    this.lowThreshold = 5,
+    this.onLock,
   });
 
   Color get _statusColor {
     if (product.quantity <= 0) return AppColors.danger;
-    if (product.quantity <= 5) return AppColors.warning;
+    if (product.quantity <= lowThreshold) return AppColors.warning;
     return AppColors.success;
   }
 
@@ -53,10 +57,37 @@ class ProductCard extends StatelessWidget {
                   child: Text(product.name,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
+                if (onLock != null)
+                  IconButton(
+                    tooltip: 'تثبيت السعر',
+                    icon: Icon(product.isLocked ? Icons.lock : Icons.lock_open,
+                        color: product.isLocked ? AppColors.warning : AppColors.grey),
+                    onPressed: onLock,
+                  ),
                 IconButton(icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), onPressed: onEdit),
                 IconButton(icon: const Icon(Icons.delete, color: AppColors.danger), onPressed: onDelete),
               ],
             ),
+            if (product.isLocked)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'سعر مثبّت (${_lockLabel(product.lockMode)})',
+                  style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            if (product.hasOffer || product.hasCompanyOffer)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(spacing: 8, children: [
+                  if (product.hasOffer)
+                    Text('هدية على حسابي: كل ${product.offerBuyQty} ← ${product.offerFreeQty}',
+                        style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 12)),
+                  if (product.hasCompanyOffer)
+                    Text('هدية الشركة: كل ${product.companyBuyQty} ← ${product.companyFreeQty}',
+                        style: const TextStyle(color: Color(0xFF2563EB), fontSize: 12)),
+                ]),
+              ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -112,6 +143,9 @@ class ProductCard extends StatelessWidget {
       ),
     );
   }
+
+  static String _lockLabel(String m) =>
+      m == 'buy' ? 'شراء' : (m == 'sell' ? 'بيع' : 'شراء وبيع');
 
   Future<void> _editQuantity(BuildContext context) async {
     final c = TextEditingController(text: '${product.quantity}');

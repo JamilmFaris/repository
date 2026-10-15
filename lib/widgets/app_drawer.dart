@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import '../screens/cash/cash_screen.dart';
 import '../screens/coupons/coupons_screen.dart';
 import '../screens/purchases/purchases_screen.dart';
+import '../screens/receipts/receipts_screen.dart';
 import '../screens/reservations/reservations_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/suppliers/supplier_returns_screen.dart';
 import '../screens/suppliers/suppliers_screen.dart';
 
 /// القائمة الجانبية: الأقسام غير الموجودة في التبويبات السفلية.
@@ -26,9 +29,19 @@ class AppDrawer extends StatelessWidget {
             ),
             const Divider(),
             ListTile(
+              leading: const Icon(Icons.savings),
+              title: const Text('الصندوق (الدرج)'),
+              onTap: () => _go(context, const CashScreen()),
+            ),
+            ListTile(
               leading: const Icon(Icons.local_shipping),
               title: const Text('الموردون'),
               onTap: () => _go(context, const SuppliersScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment_return),
+              title: const Text('مرتجعات الموردين'),
+              onTap: () => _go(context, const SupplierReturnsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.shopping_bag),
@@ -39,6 +52,11 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.bookmark_added),
               title: const Text('الحجوزات'),
               onTap: () => _go(context, const ReservationsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('سجل وصولات الدفع'),
+              onTap: () => _go(context, const ReceiptsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.local_offer),

@@ -6,6 +6,7 @@ import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/motion.dart';
 import '../../widgets/app_drawer.dart';
 import 'create_invoice_screen.dart';
 import 'invoice_detail_screen.dart';
@@ -42,7 +43,9 @@ class InvoicesScreen extends StatelessWidget {
               itemCount: inv.invoices.length,
               itemBuilder: (_, i) {
                 final invoice = inv.invoices[i];
-                return Card(
+                return FadeSlideIn(
+                  index: i,
+                  child: Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
@@ -66,6 +69,7 @@ class InvoicesScreen extends StatelessWidget {
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoiceId: invoice.id!))),
+                  ),
                   ),
                 );
               },
