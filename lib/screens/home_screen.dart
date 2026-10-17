@@ -76,12 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     Positioned.fill(
                       child: IgnorePointer(
                         ignoring: i != _index,
-                        child: TickerMode(
-                          enabled: i == _index,
-                          child: AnimatedOpacity(
-                            opacity: i == _index ? 1 : 0,
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOut,
+                        // AnimatedOpacity خارج TickerMode حتى يكتمل إخفاء الشاشة السابقة
+                        child: AnimatedOpacity(
+                          opacity: i == _index ? 1 : 0,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          child: TickerMode(
+                            enabled: i == _index,
                             child: _screens[i],
                           ),
                         ),
