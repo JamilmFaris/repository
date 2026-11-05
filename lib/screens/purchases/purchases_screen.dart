@@ -6,6 +6,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/purchase_image_section.dart';
 import 'purchase_invoice_screen.dart';
 
 class PurchasesScreen extends StatelessWidget {
@@ -46,6 +47,9 @@ class PurchasesScreen extends StatelessWidget {
                 final supplier = parties.supplierById(p.supplierId);
                 return Card(
                   child: ExpansionTile(
+                    leading: p.imagePath == null
+                        ? null
+                        : const Icon(Icons.image_outlined, color: AppColors.primary),
                     title: Text(supplier?.name ?? 'مورّد محذوف',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(
@@ -59,6 +63,7 @@ class PurchasesScreen extends StatelessWidget {
                           subtitle: Text('${it.quantity} × ${Fmt.money(it.buyPrice, cur)}'),
                           trailing: Text(Fmt.money(it.total, cur)),
                         ),
+                      PurchaseImageSection(purchase: p),
                       TextButton.icon(
                         icon: const Icon(Icons.delete, color: AppColors.danger),
                         label: const Text('حذف الفاتورة (تُنقَص الكميات)',

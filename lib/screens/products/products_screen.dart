@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/stock_pdf.dart';
 import '../../data/models/product.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
@@ -26,83 +27,132 @@ class ProductsScreen extends StatelessWidget {
     final soldMap = report.soldQtyByProduct;
     final profitMap = report.profitByProduct;
 
-    return Scaffold(
-      drawer: const AppDrawer(),
-      appBar: AppBar(
-        title: const Text('الأصناف'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sort),
-            onPressed: () => _showSortDialog(context, p),
+    final low = settings.lowStock;
+    final out = p.products.where((x) => x.quantity <= 0).toList();
+    final atMin = p.products.where((x) => x.quantity > 0 && x.quantity <= low).toList();
+
+    Widget list(List<Product> items, {required String emptyTitle, required String emptySub}) {
+      if (items.isEmpty) {
+        return EmptyState(icon: Icons.inventory_2_outlined, title: emptyTitle, subtitle: emptySub);
+      }
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+        itemCount: items.length,
+        itemBuilder: (_, i) {
+          final prod = items[i];
+          return FadeSlideIn(
+            index: i,
+            child: ProductCard(
+              product: prod,
+              currency: settings.currency,
+              lowThreshold: settings.lowStock,
+              onLock: prod.isUsd ? () => showPriceLockSheet(context, prod) : null,
+              soldQty: soldMap[prod.id] ?? 0,
+              totalProfit: profitMap[prod.id] ?? 0,
+              onQuantityChanged: (q) => p.updateQuantity(prod, q),
+              onEdit: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => AddEditProductScreen(product: prod))),
+              onDelete: () => _confirmDelete(context, p, prod),
+            ),
+          );
+        },
+      );
+    }
+
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        drawer: const AppDrawer(),
+        appBar: AppBar(
+          title: const Text('الأصناف'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.sort),
+              onPressed: () => _showSortDialog(context, p),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'تقارير المخزون',
+              icon: const Icon(Icons.picture_as_pdf),
+              onSelected: (v) => _report(context, v, p, settings),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'inventory', child: Text('جرد كل الأصناف (PDF)')),
+                PopupMenuItem(value: 'alerts', child: Text('المنخفضة والمنتهية (PDF)')),
+                PopupMenuItem(value: 'alerts-img', child: Text('المنخفضة والمنتهية (صورة / واتساب)')),
+              ],
+            ),
+          ],
+          bottom: TabBar(
+            tabs: [
+              Tab(text: 'الكل (${p.products.length})'),
+              Tab(text: 'المنتهي (${out.length})'),
+              Tab(text: 'المنخفض (${atMin.length})'),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddEditProductScreen())),
-        icon: const Icon(Icons.add),
-        label: const Text('صنف جديد'),
-      ),
-      body: Column(
-        children: [
-          if (p.lowStockFor(settings.lowStock).isNotEmpty || p.outOfStock.isNotEmpty)
-            Container(
-              width: double.infinity,
-              color: AppColors.warning.withOpacity(0.15),
-              padding: const EdgeInsets.all(10),
-              child: Row(
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const AddEditProductScreen())),
+          icon: const Icon(Icons.add),
+          label: const Text('صنف جديد'),
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: TextField(
+                onChanged: p.setSearch,
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن صنف...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
                 children: [
-                  const Icon(Icons.warning_amber, color: AppColors.warning),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'تنبيه: ${p.lowStockFor(settings.lowStock).length} صنف منخفض و ${p.outOfStock.length} صنف منتهي',
-                      style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  list(p.products,
+                      emptyTitle: 'لا توجد أصناف', emptySub: 'أضف صنفك الأول من الزر أدناه'),
+                  list(out, emptyTitle: 'لا توجد أصناف منتهية', emptySub: 'كل أصنافك متوفرة 👌'),
+                  list(atMin,
+                      emptyTitle: 'لا توجد أصناف منخفضة',
+                      emptySub: 'لا صنف وصل للحد الأدنى ($low قطع أو أقل)'),
                 ],
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              onChanged: p.setSearch,
-              decoration: InputDecoration(
-                hintText: 'ابحث عن صنف...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-          ),
-          Expanded(
-            child: p.products.isEmpty
-                ? const EmptyState(icon: Icons.inventory_2_outlined, title: 'لا توجد أصناف', subtitle: 'أضف صنفك الأول من الزر أدناه')
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                    itemCount: p.products.length,
-                    itemBuilder: (_, i) {
-                      final prod = p.products[i];
-                      return FadeSlideIn(
-                        index: i,
-                        child: ProductCard(
-                        product: prod,
-                        currency: settings.currency,
-                        lowThreshold: settings.lowStock,
-                        onLock: prod.isUsd ? () => showPriceLockSheet(context, prod) : null,
-                        soldQty: soldMap[prod.id] ?? 0,
-                        totalProfit: profitMap[prod.id] ?? 0,
-                        onQuantityChanged: (q) => p.updateQuantity(prod, q),
-                        onEdit: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => AddEditProductScreen(product: prod))),
-                        onDelete: () => _confirmDelete(context, p, prod),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _report(
+      BuildContext context, String kind, ProductProvider p, SettingsProvider settings) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final all = p.allProducts;
+      if (all.isEmpty) {
+        messenger.showSnackBar(const SnackBar(content: Text('لا توجد أصناف لإصدار التقرير')));
+        return;
+      }
+      if (kind == 'inventory') {
+        final bytes = await StockPdf.buildInventory(
+            products: all, storeName: settings.storeName, lowThreshold: settings.lowStock);
+        await StockPdf.sharePdf(bytes, 'inventory-report.pdf');
+      } else {
+        final bytes = await StockPdf.buildAlerts(
+            products: all, storeName: settings.storeName, lowThreshold: settings.lowStock);
+        if (kind == 'alerts') {
+          await StockPdf.sharePdf(bytes, 'stock-alerts.pdf');
+        } else {
+          await StockPdf.shareAsImages(bytes, 'stock-alerts', text: 'تقرير النواقص والأصناف المنتهية');
+        }
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('تعذّر إنشاء التقرير: $e')));
+    }
   }
 
   void _showSortDialog(BuildContext context, ProductProvider p) {

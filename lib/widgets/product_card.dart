@@ -103,7 +103,7 @@ class ProductCard extends StatelessWidget {
               children: [
                 Expanded(child: _stat('مباع', '$soldQty', Icons.sell)),
                 Expanded(child: _stat('ربح', Fmt.money(totalProfit, currency), Icons.trending_up, color: AppColors.success)),
-                Expanded(child: _stat('مخزون', Fmt.money(product.buyPrice * product.quantity, currency), Icons.warehouse)),
+                Expanded(child: _stat('مخزون', Fmt.money(product.buyPrice * product.paidQuantity, currency), Icons.warehouse)),
               ],
             ),
             const SizedBox(height: 8),

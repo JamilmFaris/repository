@@ -132,6 +132,11 @@ class PartyProvider extends ChangeNotifier {
     await loadAll();
   }
 
+  Future<void> setPurchaseImage(int id, String? name) async {
+    await _repo.setPurchaseImage(id, name);
+    await loadAll();
+  }
+
   Future<void> deletePurchase(int id) async {
     await _repo.deletePurchase(id);
     await loadAll();

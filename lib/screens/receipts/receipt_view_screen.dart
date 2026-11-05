@@ -120,13 +120,30 @@ class ReceiptPaper extends StatelessWidget {
     final cur = settings.currency;
     final currencyName = cur == 'ل.س' ? 'ليرة سورية' : cur;
 
+    // النص والعنوان في فقرة واحدة فيقعان على سطر مستوٍ تماماً (بدل Row بارتفاعين مختلفين)
     Widget line(String k, String v) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(text: '$k ', style: const TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(text: v),
+            ]),
+            style: const TextStyle(fontSize: 14, height: 1.6),
+          ),
+        );
+
+    Widget stampBox(String? label, String asset, double height) => Expanded(
+          child: Column(
             children: [
-              Text('$k ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Expanded(child: Text(v, style: const TextStyle(fontSize: 14, height: 1.5))),
+              if (label != null) ...[
+                Text(label,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: green)),
+                const SizedBox(height: 4),
+              ],
+              SizedBox(
+                height: height,
+                child: Center(child: Image.asset(asset, fit: BoxFit.contain)),
+              ),
             ],
           ),
         );
@@ -179,10 +196,14 @@ class ReceiptPaper extends StatelessWidget {
                 '${Fmt.num2(receipt.amount)} $cur — ${ArabicWords.money(receipt.amount, currencyName: currencyName)}'),
             if (receipt.purpose.isNotEmpty) line('وذلك مقابل:', receipt.purpose),
             if (receipt.note.isNotEmpty) line('ملاحظة:', receipt.note),
-            const SizedBox(height: 22),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('التوقيع: ____________________'),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                stampBox(null, 'assets/images/stamp.png', 110),
+                const SizedBox(width: 14),
+                stampBox('التوقيع', 'assets/images/signature.png', 92),
+              ],
             ),
             const SizedBox(height: 14),
             const Center(

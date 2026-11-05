@@ -70,6 +70,9 @@ class PurchaseInvoice {
   final double shippingCost;
   final double otherCost;
 
+  /// اسم ملف صورة الفاتورة الورقية المؤرشفة (null = لا صورة).
+  final String? imagePath;
+
   PurchaseInvoice({
     this.id,
     required this.supplierId,
@@ -80,6 +83,7 @@ class PurchaseInvoice {
     required this.items,
     this.shippingCost = 0,
     this.otherCost = 0,
+    this.imagePath,
   });
 
   double get extraTotal => shippingCost + otherCost;
@@ -96,6 +100,7 @@ class PurchaseInvoice {
     'notes': notes,
     'shippingCost': shippingCost,
     'otherCost': otherCost,
+    'imagePath': imagePath,
   };
 
   factory PurchaseInvoice.fromMap(Map<String, dynamic> m, List<PurchaseItem> items) =>
@@ -109,6 +114,7 @@ class PurchaseInvoice {
         items: items,
         shippingCost: ((m['shippingCost'] ?? 0) as num).toDouble(),
         otherCost: ((m['otherCost'] ?? 0) as num).toDouble(),
+        imagePath: m['imagePath'],
       );
 }
 

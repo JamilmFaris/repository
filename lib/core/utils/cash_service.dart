@@ -18,7 +18,24 @@ class CashCount {
   final double actual;
   final double diff;
   final String note;
-  CashCount(this.id, this.date, this.theoretical, this.actual, this.diff, this.note);
+
+  /// للرصيد الافتتاحي: المبلغ المُدخل بالدولار وسعر الصرف وقت الإدخال (0 = أُدخل بالليرة).
+  final double usdAmount;
+  final double rate;
+  CashCount(this.id, this.date, this.theoretical, this.actual, this.diff, this.note,
+      {this.usdAmount = 0, this.rate = 0});
+
+  bool get isOpening => note == CashService.openingNote;
+  bool get enteredInUsd => usdAmount > 0;
+}
+
+/// حركة نقدية تلقائية مصدرها فاتورة أو دفعة أو مصروف (للعرض في الصندوق).
+class CashEntry {
+  final bool isIn;
+  final double amount;
+  final String label;
+  final DateTime date;
+  CashEntry(this.isIn, this.amount, this.label, this.date);
 }
 
 /// تفصيل رصيد الدرج النظري منذ آخر جرد.
@@ -66,6 +83,7 @@ class CashBreakdown {
 /// كل المقبوضات والمدفوعات تُعتبر نقدية (لا تمييز لطريقة الدفع).
 class CashService {
   static final _db = DatabaseHelper.instance;
+  static const openingNote = 'رصيد افتتاحي';
 
   static Future<CashCount?> lastCount() async {
     final db = await _db.database;
@@ -80,6 +98,8 @@ class CashService {
         (r['actual'] as num).toDouble(),
         (r['diff'] as num).toDouble(),
         r['note'] as String? ?? '',
+        usdAmount: ((r['usdAmount'] ?? 0) as num).toDouble(),
+        rate: ((r['rate'] ?? 0) as num).toDouble(),
       );
 
   static Future<List<CashCount>> counts() async {
@@ -143,8 +163,9 @@ class CashService {
       }
     }
 
+    // الدفعات التي اختار المستخدم عدم إضافتها للصندوق (inCash = 0) لا تُحتسب
     final collections = await _sum(
-        'SELECT COALESCE(SUM(amount),0) FROM payments WHERE date > ?', [iso]);
+        'SELECT COALESCE(SUM(amount),0) FROM payments WHERE date > ? AND inCash = 1', [iso]);
     final supplierPay = await _sum(
             'SELECT COALESCE(SUM(amount),0) FROM supplier_payments WHERE date > ?', [iso]) +
         await _sum(
@@ -206,5 +227,99 @@ class CashService {
       'diff': actual - theoretical,
       'note': note,
     });
+  }
+
+  /// الجرد الافتتاحي (الأول المسجَّل بصفة «رصيد افتتاحي») أو null.
+  static Future<CashCount?> openingCount() async {
+    final db = await _db.database;
+    final rows = await db.query('cash_counts',
+        where: 'note = ?', whereArgs: [openingNote], orderBy: 'date ASC, id ASC', limit: 1);
+    return rows.isEmpty ? null : _count(rows.first);
+  }
+
+  /// يسجّل الرصيد الافتتاحي؛ [usd] > 0 إن أُدخل بالدولار (والمبلغ [amount] بالليرة محوَّل بـ [rate]).
+  static Future<void> saveOpening(double amount, {double usd = 0, double rate = 0}) async {
+    final db = await _db.database;
+    await db.insert('cash_counts', {
+      'date': DateTime.now().toIso8601String(),
+      'theoretical': amount,
+      'actual': amount,
+      'diff': 0,
+      'note': openingNote,
+      'usdAmount': usd,
+      'rate': rate,
+    });
+  }
+
+  /// يعدّل الرصيد الافتتاحي المسجَّل بالخطأ (يبقى تاريخه فيبقى حساب ما بعده سليماً).
+  static Future<void> updateOpening(int id, double amount, {double usd = 0, double rate = 0}) async {
+    final db = await _db.database;
+    await db.update(
+      'cash_counts',
+      {'theoretical': amount, 'actual': amount, 'diff': 0, 'usdAmount': usd, 'rate': rate},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// الحركات التلقائية بعد آخر جرد: ما دخل/خرج من الدرج من الفواتير والدفعات والمصاريف.
+  static Future<List<CashEntry>> autoEntries() async {
+    final last = await lastCount();
+    if (last == null) return [];
+    final since = last.date;
+    final iso = since.toIso8601String();
+    final db = await _db.database;
+    final out = <CashEntry>[];
+
+    final invoices = await InvoiceRepository().getAll();
+    final retRows = await db.query('returns');
+    final refundsByInvoice = <int, double>{};
+    for (final r in retRows) {
+      final id = r['invoiceId'] as int;
+      refundsByInvoice[id] = (refundsByInvoice[id] ?? 0) + (r['refundAmount'] as num).toDouble();
+    }
+    for (final inv in invoices) {
+      if (!inv.date.isAfter(since)) continue;
+      final original = inv.total + (refundsByInvoice[inv.id] ?? 0);
+      final paid = inv.paidAmount ?? original;
+      if (paid <= 0) continue;
+      out.add(CashEntry(true, paid, 'فاتورة ${inv.number} — ${inv.customerName}', inv.date));
+    }
+
+    Future<void> rows(String sql, bool isIn, String Function(Map<String, Object?>) label,
+        {String amountKey = 'amount'}) async {
+      for (final r in await db.rawQuery(sql, [iso])) {
+        final amount = (r[amountKey] as num).toDouble();
+        if (amount <= 0) continue;
+        out.add(CashEntry(isIn, amount, label(r), DateTime.parse(r['date'] as String)));
+      }
+    }
+
+    await rows(
+        'SELECT p.amount, p.date, c.name FROM payments p LEFT JOIN customers c ON c.id = p.customerId '
+        'WHERE p.date > ? AND p.inCash = 1',
+        true,
+        (r) => 'دفعة من ${r['name'] ?? 'زبون'}');
+    await rows(
+        'SELECT sp.amount, sp.date, s.name FROM supplier_payments sp '
+        'LEFT JOIN suppliers s ON s.id = sp.supplierId WHERE sp.date > ?',
+        false,
+        (r) => 'دفعة للمورّد ${r['name'] ?? ''}');
+    await rows(
+        'SELECT pi.paidAmount AS amount, pi.date, s.name FROM purchase_invoices pi '
+        'LEFT JOIN suppliers s ON s.id = pi.supplierId WHERE pi.date > ?',
+        false,
+        (r) => 'فاتورة شراء — ${r['name'] ?? ''}');
+    await rows(
+        'SELECT (shippingCost + otherCost) AS amount, date FROM purchase_invoices WHERE date > ?',
+        false,
+        (_) => 'شحن وجمارك');
+    await rows(
+        'SELECT amount, date, category FROM expenses WHERE date > ? AND invoiceId IS NULL',
+        false,
+        (r) => 'مصروف: ${r['category']}');
+
+    out.sort((a, b) => b.date.compareTo(a.date));
+    return out;
   }
 }

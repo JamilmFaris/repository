@@ -116,4 +116,14 @@ class Product {
       );
 
   double get profitPerUnit => sellPrice - buyPrice;
+
+  /// القطع المدفوعة من المخزون: هدايا عرض الشركة مجانية فلا تدخل في رأس المال.
+  /// كل مجموعة (companyBuyQty + companyFreeQty) فيها companyBuyQty مدفوعة،
+  /// والمجموعة الناقصة تُعدّ مدفوعة أولاً. مثال: 48 قطعة بعرض 1+1 → 24 مدفوعة.
+  int get paidQuantity {
+    if (!hasCompanyOffer || quantity <= 0) return quantity;
+    final group = companyBuyQty + companyFreeQty;
+    final rest = quantity % group;
+    return (quantity ~/ group) * companyBuyQty + (rest < companyBuyQty ? rest : companyBuyQty);
+  }
 }

@@ -13,7 +13,7 @@ class DatabaseHelper {
     'cash_movements', 'cash_counts', 'supplier_return_items', 'supplier_returns',
   ];
 
-  static const _schemaVersion = 4;
+  static const _schemaVersion = 5;
 
   /// ترقيات تراكمية: تضيف أعمدة/جداول فقط، فلا تُفقد أي بيانات موجودة.
   static Future<void> _migrate(Database db, int from, int to) async {
@@ -96,6 +96,20 @@ class DatabaseHelper {
           quantity INTEGER NOT NULL,
           unitPrice REAL NOT NULL
         )''',
+      ];
+      for (final s in stmts) {
+        await db.execute(s);
+      }
+    }
+    if (from < 5 && to >= 5) {
+      const stmts = [
+        // وصل الدفع: هل يُحتسب المبلغ نقداً في الصندوق؟ (الافتراضي نعم كما كان)
+        "ALTER TABLE payments ADD COLUMN inCash INTEGER NOT NULL DEFAULT 1",
+        // الرصيد الافتتاحي بالدولار: المبلغ المُدخل بالدولار وسعر الصرف وقت الإدخال (0 = أُدخل بالليرة)
+        "ALTER TABLE cash_counts ADD COLUMN usdAmount REAL NOT NULL DEFAULT 0",
+        "ALTER TABLE cash_counts ADD COLUMN rate REAL NOT NULL DEFAULT 0",
+        // أرشفة صورة فاتورة المورّد الورقية
+        "ALTER TABLE purchase_invoices ADD COLUMN imagePath TEXT",
       ];
       for (final s in stmts) {
         await db.execute(s);

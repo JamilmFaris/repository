@@ -39,6 +39,11 @@ class CustomerDetailScreen extends StatelessWidget {
         title: Text(customer.name),
         actions: [
           IconButton(
+            tooltip: 'كشف حساب (PDF)',
+            icon: const Icon(Icons.description_outlined),
+            onPressed: () => printCustomerStatement(context, customer),
+          ),
+          IconButton(
             tooltip: 'إرسال وصل دفع',
             icon: const Icon(Icons.receipt_long),
             onPressed: () => Navigator.push(
@@ -109,6 +114,15 @@ class CustomerDetailScreen extends StatelessWidget {
                   const Divider(),
                   _row('المتبقي عليه', Fmt.money(owed, cur),
                       bold: true, color: owed > 0 ? AppColors.danger : AppColors.success),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => printCustomerStatement(context, customer),
+                      icon: const Icon(Icons.description_outlined),
+                      label: const Text('طباعة كشف حساب (PDF)'),
+                    ),
+                  ),
                 ],
               ),
             ),

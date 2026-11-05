@@ -15,7 +15,7 @@ class ReportProvider extends ChangeNotifier {
   double get totalSales => _invoices.fold(0, (s, i) => s + i.total);
   double get totalCost => _invoices.fold(0, (s, i) => s + i.totalCost);
   double get totalProfit => totalSales - totalCost;
-  double get inventoryValue => _products.fold(0, (s, p) => s + (p.buyPrice * p.quantity));
+  double get inventoryValue => _products.fold(0, (s, p) => s + (p.buyPrice * p.paidQuantity));
   double get expectedProfit => _products.fold(0, (s, p) => s + (p.profitPerUnit * p.quantity));
   int get productsCount => _products.length;
   int get invoicesCount => _invoices.length;

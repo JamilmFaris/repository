@@ -20,13 +20,32 @@ class ReceiptPdf {
     final green = PdfColor.fromInt(0xFF2E7D5B);
     final currencyName = currency == 'ل.س' ? 'ليرة سورية' : currency;
 
+    final stamp = pw.MemoryImage((await rootBundle.load('assets/images/stamp.png')).buffer.asUint8List());
+    final signature =
+        pw.MemoryImage((await rootBundle.load('assets/images/signature.png')).buffer.asUint8List());
+
+    // العنوان والنص في فقرة واحدة فيقعان على نفس خط الأساس (بدل Row بخطّين مختلفين)
     pw.Widget line(String k, String v) => pw.Padding(
           padding: const pw.EdgeInsets.symmetric(vertical: 5),
-          child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          child: pw.RichText(
+            text: pw.TextSpan(children: [
+              pw.TextSpan(text: '$k ', style: strong),
+              pw.TextSpan(text: v, style: base),
+            ]),
+          ),
+        );
+
+    pw.Widget stampBox(String? label, pw.ImageProvider image, double height) => pw.Expanded(
+          child: pw.Column(
             children: [
-              pw.Text('$k ', style: strong),
-              pw.Expanded(child: pw.Text(v, style: base)),
+              if (label != null) ...[
+                pw.Text(label, style: pw.TextStyle(font: bold, fontSize: 11, color: green)),
+                pw.SizedBox(height: 3),
+              ],
+              pw.SizedBox(
+                height: height,
+                child: pw.Center(child: pw.Image(image, fit: pw.BoxFit.contain)),
+              ),
             ],
           ),
         );
@@ -72,12 +91,16 @@ class ReceiptPdf {
                 '${Fmt.num2(receipt.amount)} $currency — ${ArabicWords.money(receipt.amount, currencyName: currencyName)}'),
             if (receipt.purpose.isNotEmpty) line('وذلك مقابل:', receipt.purpose),
             if (receipt.note.isNotEmpty) line('ملاحظة:', receipt.note),
-            pw.SizedBox(height: 24),
-            pw.Align(
-              alignment: pw.Alignment.centerLeft,
-              child: pw.Text('التوقيع: ____________________', style: base),
+            pw.SizedBox(height: 16),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                stampBox(null, stamp, 110),
+                pw.SizedBox(width: 14),
+                stampBox('التوقيع', signature, 78),
+              ],
             ),
-            pw.SizedBox(height: 14),
+            pw.SizedBox(height: 12),
             pw.Center(
               child: pw.Text('شكراً لتعاملكم معنا', style: pw.TextStyle(font: bold, color: green)),
             ),

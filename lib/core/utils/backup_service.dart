@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../../data/database/database_helper.dart';
 import '../../data/repositories/settings_repository.dart';
+import 'invoice_images.dart';
 
 /// نسخ احتياطي كامل (كل الجداول + الإعدادات) كملف JSON، واستعادته على هاتف آخر.
 class BackupService {
@@ -17,11 +19,20 @@ class BackupService {
       tables[t] = await db.query(t);
     }
     final settings = await SettingsRepository().load();
+
+    // صور فواتير الموردين المؤرشفة تُضمَّن (base64) فتنتقل مع النسخة إلى هاتف آخر
+    final images = <String, String>{};
+    for (final r in (tables['purchase_invoices'] as List)) {
+      final name = (r as Map)['imagePath'] as String?;
+      final f = await InvoiceImages.resolve(name);
+      if (name != null && f != null) images[name] = base64Encode(await f.readAsBytes());
+    }
     final payload = {
       'format': _format,
       'version': _version,
       'createdAt': DateTime.now().toIso8601String(),
       'tables': tables,
+      'images': images,
       'settings': settings,
     };
     final dir = await getTemporaryDirectory();
@@ -52,6 +63,14 @@ class BackupService {
         }
       }
     });
+    final images = Map<String, dynamic>.from((decoded['images'] as Map?) ?? {});
+    if (images.isNotEmpty) {
+      final dir = await InvoiceImages.dir();
+      for (final e in images.entries) {
+        // اسم الملف فقط (حماية من أي مسار مُدرَج في ملف النسخة)
+        await File(p.join(dir.path, p.basename(e.key))).writeAsBytes(base64Decode(e.value as String));
+      }
+    }
     final s = Map<String, dynamic>.from((decoded['settings'] as Map?) ?? {});
     await SettingsRepository().save(
       storeName: s['storeName'] as String?,

@@ -21,6 +21,9 @@ class ProductProvider extends ChangeNotifier {
     return list;
   }
 
+  /// كل الأصناف بلا بحث أو ترتيب (للتقارير).
+  List<Product> get allProducts => List<Product>.unmodifiable(_products);
+
   /// أصناف وصلت للحد الأدنى (أكبر من 0 وأقل من أو تساوي الحد).
   List<Product> lowStockFor(int threshold) =>
       _products.where((p) => p.quantity > 0 && p.quantity <= threshold).toList();

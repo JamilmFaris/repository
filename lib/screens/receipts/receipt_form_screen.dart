@@ -23,6 +23,7 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
   final _purpose = TextEditingController(text: 'سداد دَين');
   final _note = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _addToCash = true;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
       purpose: _purpose.text.trim(),
       note: _note.text.trim(),
       date: _date,
+      addToCash: _addToCash,
     );
     await parties.loadAll();
     nav.pushReplacement(
@@ -187,6 +189,14 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
           const SizedBox(height: 8),
           const Text('سيُسجَّل المبلغ كدفعة على حساب الزبون (يُنقص دَينه).',
               style: TextStyle(fontSize: 12)),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _addToCash,
+            onChanged: (v) => setState(() => _addToCash = v ?? true),
+            title: const Text('إضافة المبلغ إلى الصندوق كإدخال نقدي'),
+            subtitle: const Text('ألغِ التحديد إن لم يدخل المبلغ إلى الدرج (مثلاً حوالة أو تسوية)'),
+          ),
           const SizedBox(height: 16),
           SizedBox(
             height: 52,

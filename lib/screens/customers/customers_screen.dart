@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/statement_pdf.dart';
+import '../../data/models/party.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -18,6 +20,28 @@ double customerOwed(int customerId, InvoiceProvider inv, PartyProvider parties) 
       .where((i) => i.customerId == customerId)
       .fold<double>(0, (s, i) => s + i.owed);
   return debt - parties.paidByCustomer(customerId);
+}
+
+/// يُصدر كشف حساب الزبون (PDF رسمي) ويشاركه/يطبعه.
+Future<void> printCustomerStatement(BuildContext context, Party customer) async {
+  final inv = context.read<InvoiceProvider>();
+  final parties = context.read<PartyProvider>();
+  final settings = context.read<SettingsProvider>();
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final bytes = await StatementPdf.build(
+      customer: customer,
+      invoices: inv.invoices.where((i) => i.customerId == customer.id).toList(),
+      payments: parties.customerPayments.where((p) => p.partyId == customer.id).toList(),
+      storeName: settings.storeName,
+      phone: settings.phone,
+      address: settings.address,
+      currency: settings.currency,
+    );
+    await StatementPdf.share(bytes, customer.name);
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('تعذّر إنشاء كشف الحساب: $e')));
+  }
 }
 
 class CustomersScreen extends StatefulWidget {
@@ -95,12 +119,22 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             leading: PartyAvatar(name: c.name),
                             title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: c.phone.isEmpty ? null : Text(c.phone),
-                            trailing: Text(
-                              owed > 0 ? 'عليه ${Fmt.money(owed, cur)}' : 'لا دَين',
-                              style: TextStyle(
-                                color: owed > 0 ? AppColors.danger : AppColors.success,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  owed > 0 ? 'عليه ${Fmt.money(owed, cur)}' : 'لا دَين',
+                                  style: TextStyle(
+                                    color: owed > 0 ? AppColors.danger : AppColors.success,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'كشف حساب (PDF)',
+                                  icon: const Icon(Icons.description_outlined),
+                                  onPressed: () => printCustomerStatement(context, c),
+                                ),
+                              ],
                             ),
                             onTap: () => Navigator.push(
                               context,

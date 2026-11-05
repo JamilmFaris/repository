@@ -6,6 +6,8 @@ class CashProvider extends ChangeNotifier {
   CashBreakdown breakdown = CashBreakdown(hasBaseline: false);
   List<CashMovement> movements = [];
   List<CashCount> counts = [];
+  List<CashEntry> autoEntries = [];
+  CashCount? opening;
 
   double get balance => breakdown.theoretical;
   bool get hasBaseline => breakdown.hasBaseline;
@@ -14,6 +16,8 @@ class CashProvider extends ChangeNotifier {
     breakdown = await CashService.compute();
     movements = await CashService.movements();
     counts = await CashService.counts();
+    autoEntries = await CashService.autoEntries();
+    opening = await CashService.openingCount();
     notifyListeners();
   }
 
@@ -28,8 +32,14 @@ class CashProvider extends ChangeNotifier {
   }
 
   /// الرصيد الافتتاحي للمرة الأولى: يُسجَّل كجرد نظري = فعلي.
-  Future<void> saveOpening(double amount) async {
-    await CashService.saveCount(theoretical: amount, actual: amount, note: 'رصيد افتتاحي');
+  Future<void> saveOpening(double amount, {double usd = 0, double rate = 0}) async {
+    await CashService.saveOpening(amount, usd: usd, rate: rate);
+    await refresh();
+  }
+
+  /// تصحيح الرصيد الافتتاحي المُدخل بالخطأ.
+  Future<void> updateOpening(int id, double amount, {double usd = 0, double rate = 0}) async {
+    await CashService.updateOpening(id, amount, usd: usd, rate: rate);
     await refresh();
   }
 

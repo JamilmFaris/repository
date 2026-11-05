@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../widgets/purchase_image_section.dart';
 import '../../data/models/party.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/product_provider.dart';
@@ -148,6 +149,7 @@ class SupplierDetailScreen extends StatelessWidget {
                       subtitle: Text('${it.quantity} × ${Fmt.money(it.buyPrice, cur)}'),
                       trailing: Text(Fmt.money(it.total, cur)),
                     ),
+                  PurchaseImageSection(purchase: p),
                 ],
               ),
             ),

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/invoice_images.dart';
 import '../../core/utils/pricing.dart';
 import '../../data/models/purchase.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/product_picker.dart';
 
 /// فاتورة شراء من مورّد: إدخال بضاعة دفعة واحدة.
 class PurchaseInvoiceScreen extends StatefulWidget {
@@ -33,6 +35,10 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
   bool _otherUsd = false;
   final List<PurchaseItem> _items = [];
 
+  /// صورة الفاتورة الورقية المختارة (اسم الملف المؤرشف) — تُحذف إن لم تُحفظ الفاتورة.
+  String? _imageName;
+  bool _saved = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +47,7 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
 
   @override
   void dispose() {
+    if (!_saved) InvoiceImages.delete(_imageName);
     _number.dispose();
     _notes.dispose();
     _paid.dispose();
@@ -123,6 +130,66 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
     );
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final name = await InvoiceImages.pickAndStore();
+      if (name == null) return;
+      final old = _imageName;
+      setState(() => _imageName = name);
+      await InvoiceImages.delete(old);
+    } catch (e) {
+      _error('تعذّر اختيار الصورة: $e');
+    }
+  }
+
+  /// أرشفة صورة فاتورة المورّد الورقية (من المعرض) وربطها بهذه الفاتورة.
+  Widget _imagePicker() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('صورة فاتورة المورّد الورقية',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('تُؤرشف لتراجعها عند أي خلاف في الأسعار أو الكميات',
+                style: TextStyle(fontSize: 12, color: AppColors.grey)),
+            const SizedBox(height: 8),
+            if (_imageName != null)
+              FutureBuilder(
+                future: InvoiceImages.resolve(_imageName),
+                builder: (_, snap) => snap.data == null
+                    ? const SizedBox.shrink()
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(snap.data!, height: 150, fit: BoxFit.cover),
+                      ),
+              ),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(_imageName == null ? 'اختيار صورة من المعرض' : 'تغيير الصورة'),
+                ),
+                if (_imageName != null)
+                  TextButton.icon(
+                    onPressed: () async {
+                      final old = _imageName;
+                      setState(() => _imageName = null);
+                      await InvoiceImages.delete(old);
+                    },
+                    icon: const Icon(Icons.close, color: AppColors.danger),
+                    label: const Text('إزالة', style: TextStyle(color: AppColors.danger)),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (_supplierId == null || _items.isEmpty) {
       _error('اختر المورّد وأضف صنفاً واحداً على الأقل');
@@ -172,11 +239,13 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
       items: items,
       shippingCost: ship,
       otherCost: other,
+      imagePath: _imageName,
     );
     final parties = context.read<PartyProvider>();
     final products = context.read<ProductProvider>();
     try {
       await parties.addPurchase(inv);
+      _saved = true;
       await products.loadProducts();
     } catch (e) {
       _error('تعذّر الحفظ: $e');
@@ -248,23 +317,15 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                 const SizedBox(height: 16),
                 const Text('إضافة صنف', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: _productId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'الصنف', border: OutlineInputBorder()),
-                  items: products
-                      .map((p) => DropdownMenuItem(value: p.id, child: Text(p.name)))
-                      .toList(),
-                  onChanged: (v) {
-                    final p = context.read<ProductProvider>().byId(v!);
-                    setState(() {
-                      _productId = v;
-                      if (p != null) {
-                        final cur = p.isUsd ? p.buyPriceUsd : p.buyPrice;
-                        _price.text = cur == cur.roundToDouble() ? '${cur.toInt()}' : '$cur';
-                      }
-                    });
-                  },
+                ProductPickerField(
+                  products: products,
+                  selectedId: _productId,
+                  detail: (p) => '${p.quantity} متوفر',
+                  onSelected: (p) => setState(() {
+                    _productId = p.id;
+                    final cur = p.isUsd ? p.buyPriceUsd : p.buyPrice;
+                    _price.text = cur == cur.roundToDouble() ? '${cur.toInt()}' : '$cur';
+                  }),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -363,6 +424,8 @@ class _PurchaseInvoiceScreenState extends State<PurchaseInvoiceScreen> {
                   controller: _notes,
                   decoration: const InputDecoration(labelText: 'ملاحظة', border: OutlineInputBorder()),
                 ),
+                const SizedBox(height: 12),
+                _imagePicker(),
               ],
             ),
           ),

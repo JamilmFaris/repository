@@ -3,6 +3,7 @@ import '../screens/cash/cash_screen.dart';
 import '../screens/coupons/coupons_screen.dart';
 import '../screens/purchases/purchases_screen.dart';
 import '../screens/receipts/receipts_screen.dart';
+import '../screens/reports/analytics_screen.dart';
 import '../screens/reservations/reservations_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/suppliers/supplier_returns_screen.dart';
@@ -32,6 +33,11 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.savings),
               title: const Text('الصندوق (الدرج)'),
               onTap: () => _go(context, const CashScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.insights),
+              title: const Text('التحليلات الذكية'),
+              onTap: () => _go(context, const AnalyticsScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.local_shipping),

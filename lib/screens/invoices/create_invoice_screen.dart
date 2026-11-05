@@ -12,6 +12,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/product_picker.dart';
 
 /// إنشاء فاتورة جديدة، أو تعديل فاتورة محفوظة عند تمرير [editing].
 class CreateInvoiceScreen extends StatefulWidget {
@@ -545,18 +546,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   const SizedBox(height: 16),
                   const Text('إضافة صنف', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: _selectedProductId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'الصنف', border: OutlineInputBorder()),
-                    items: products.map((p) => DropdownMenuItem(
-                      value: p.id,
-                      child: Text(
-                        '${p.name} (${p.quantity} متوفر)${p.hasOffer ? ' 🎁 كل ${p.offerBuyQty}+${p.offerFreeQty}' : ''}${p.hasCompanyOffer ? ' 🎁ش كل ${p.companyBuyQty}+${p.companyFreeQty}' : ''}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )).toList(),
-                    onChanged: (v) => setState(() => _selectedProductId = v),
+                  ProductPickerField(
+                    products: products,
+                    selectedId: _selectedProductId,
+                    detail: (p) =>
+                        '${p.quantity} متوفر${p.hasOffer ? ' 🎁 كل ${p.offerBuyQty}+${p.offerFreeQty}' : ''}${p.hasCompanyOffer ? ' 🎁ش كل ${p.companyBuyQty}+${p.companyFreeQty}' : ''}',
+                    onSelected: (p) => setState(() => _selectedProductId = p.id),
                   ),
                   const SizedBox(height: 8),
                   Row(

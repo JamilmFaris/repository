@@ -1,3 +1,4 @@
+import '../../core/utils/invoice_images.dart';
 import '../database/database_helper.dart';
 import '../models/party.dart';
 import '../models/purchase.dart';
@@ -164,9 +165,22 @@ class PartyRepository {
     });
   }
 
+  /// يربط صورة فاتورة المورّد الورقية بالفاتورة (null = إزالتها). تُحذف الصورة القديمة.
+  Future<void> setPurchaseImage(int id, String? name) async {
+    final db = await _db.database;
+    final old = await db.query('purchase_invoices',
+        columns: ['imagePath'], where: 'id = ?', whereArgs: [id]);
+    await db.update('purchase_invoices', {'imagePath': name}, where: 'id = ?', whereArgs: [id]);
+    if (old.isNotEmpty && old.first['imagePath'] != name) {
+      await InvoiceImages.delete(old.first['imagePath'] as String?);
+    }
+  }
+
   /// حذف فاتورة شراء: تُنقَص الكميات المضافة منها (السعر يبقى كما هو).
   Future<void> deletePurchase(int id) async {
     final db = await _db.database;
+    final img = await db.query('purchase_invoices',
+        columns: ['imagePath'], where: 'id = ?', whereArgs: [id]);
     await db.transaction((t) async {
       final items = await t.query('purchase_items', where: 'purchaseId = ?', whereArgs: [id]);
       for (final it in items) {
@@ -177,6 +191,7 @@ class PartyRepository {
       await t.delete('supplier_payments', where: 'purchaseId = ?', whereArgs: [id]);
       await t.delete('purchase_invoices', where: 'id = ?', whereArgs: [id]);
     });
+    if (img.isNotEmpty) await InvoiceImages.delete(img.first['imagePath'] as String?);
   }
 
   // ---------- مرتجعات الموردين ----------

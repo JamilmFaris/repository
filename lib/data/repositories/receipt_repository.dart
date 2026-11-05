@@ -18,6 +18,7 @@ class ReceiptRepository {
     required String purpose,
     required String note,
     required DateTime date,
+    bool addToCash = true,
   }) async {
     final db = await _db.database;
     return db.transaction((t) async {
@@ -26,6 +27,7 @@ class ReceiptRepository {
         'invoiceId': null,
         'amount': amount,
         'date': date.toIso8601String(),
+        'inCash': addToCash ? 1 : 0,
         'note': purpose.isEmpty ? note : (note.isEmpty ? purpose : '$purpose - $note'),
       });
       final r = await t.rawQuery('SELECT MAX(number) AS m FROM receipts');

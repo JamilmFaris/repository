@@ -33,7 +33,8 @@ class CapitalSummary {
     required PartyProvider parties,
     double cash = 0,
   }) {
-    final stockBuy = products.fold<double>(0, (s, p) => s + p.buyPrice * p.quantity);
+    // عرض الشركة: تُضرب القطع المدفوعة فقط بسعر الشراء (الهدايا مجانية)
+    final stockBuy = products.fold<double>(0, (s, p) => s + p.buyPrice * p.paidQuantity);
     final stockSell = products.fold<double>(0, (s, p) => s + p.sellPrice * p.quantity);
     final debts = invoices.fold<double>(0, (s, i) => s + i.owed) -
         parties.customerPayments.fold<double>(0, (s, p) => s + p.amount);

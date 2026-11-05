@@ -16,6 +16,7 @@ import '../../providers/settings_provider.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/movement_card.dart';
 import '../../widgets/period_selector.dart';
+import 'analytics_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -90,6 +91,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24, top: 8),
         children: [
+          Card(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: ListTile(
+              leading: const Icon(Icons.insights, color: AppColors.primary),
+              title: const Text('التحليلات الذكية', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('حركة الأصناف • مقارنة المبيعات • توقّع احتياج المخزون'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const AnalyticsScreen())),
+            ),
+          ),
           _itemsCard(prod.products, settings.lowStock),
           PeriodSelector(onChanged: (r) => setState(() => _range = r)),
           const SizedBox(height: 8),
