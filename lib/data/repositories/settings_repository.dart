@@ -13,9 +13,6 @@ class SettingsRepository {
   static const _kDist = 'dist_phone';
   static const _kLow = 'low_stock';
   static const _kStyle = 'app_style';
-  static const _kRefUsd = 'ref_capital_usd';
-  static const _kRefRate = 'ref_capital_rate';
-  static const _kRefDate = 'ref_capital_date';
 
   Future<Map<String, dynamic>> load() async {
     final p = await SharedPreferences.getInstance();
@@ -34,9 +31,6 @@ class SettingsRepository {
       'distPhone': p.getString(_kDist) ?? '',
       'lowStock': p.getInt(_kLow) ?? 5,
       'appStyle': p.getString(_kStyle) ?? 'normal',
-      'refCapitalUsd': p.getDouble(_kRefUsd) ?? 0.0,
-      'refCapitalRate': p.getDouble(_kRefRate) ?? 0.0,
-      'refCapitalDate': p.getString(_kRefDate),
     };
   }
 
@@ -53,9 +47,6 @@ class SettingsRepository {
     String? distPhone,
     int? lowStock,
     String? appStyle,
-    double? refCapitalUsd,
-    double? refCapitalRate,
-    String? refCapitalDate,
   }) async {
     final p = await SharedPreferences.getInstance();
     if (storeName != null) await p.setString(_kStoreName, storeName);
@@ -70,8 +61,5 @@ class SettingsRepository {
     if (distPhone != null) await p.setString(_kDist, distPhone);
     if (lowStock != null) await p.setInt(_kLow, lowStock);
     if (appStyle != null) await p.setString(_kStyle, appStyle);
-    if (refCapitalUsd != null) await p.setDouble(_kRefUsd, refCapitalUsd);
-    if (refCapitalRate != null) await p.setDouble(_kRefRate, refCapitalRate);
-    if (refCapitalDate != null) await p.setString(_kRefDate, refCapitalDate);
   }
 }

@@ -16,6 +16,8 @@ class ReportPdf {
     required CapitalSummary capital,
     required String storeName,
     required String currency,
+    double capitalRate = 0, // سعر الدولار لتحويل رأس المال
+    double profitRate = 0, // سعر الدولار لتحويل الربح
   }) async {
     _regular ??= pw.Font.ttf(await rootBundle.load('assets/fonts/Amiri-Regular.ttf'));
     _bold ??= pw.Font.ttf(await rootBundle.load('assets/fonts/Amiri-Bold.ttf'));
@@ -23,6 +25,11 @@ class ReportPdf {
     final strong = pw.TextStyle(font: _bold, fontSize: 11, fontWeight: pw.FontWeight.bold);
     final title = pw.TextStyle(font: _bold, fontSize: 16, fontWeight: pw.FontWeight.bold);
     String m(double v) => '${Fmt.num2(v)} $currency';
+    String usd(double v, double rate) => Fmt.num2(
+        v / rate < 100 ? double.parse((v / rate).toStringAsFixed(2)) : (v / rate).roundToDouble());
+    // المبلغ بالليرة وما يعادله بالدولار
+    String both(double v, double rate) =>
+        rate > 0 ? '${m(v)}  (ما يعادل ${usd(v, rate)}\$)' : m(v);
 
     pw.Widget kv(String k, String v, {bool bold = false}) => pw.Padding(
           padding: const pw.EdgeInsets.symmetric(vertical: 2),
@@ -64,7 +71,7 @@ class ReportPdf {
           kv('إجمالي المصاريف', m(data.expensesTotal), bold: true),
         ],
         pw.Divider(),
-        kv('الربح الصافي النهائي', m(data.netProfit), bold: true),
+        kv('الربح الصافي النهائي', both(data.netProfit, profitRate), bold: true),
         section('الأصناف الأكثر ربحاً'),
         for (final p in data.topByProfit(10)) kv('${p.name} (${p.qty} قطعة)', m(p.profit)),
         section('الأصناف الأكثر مبيعاً'),
@@ -72,13 +79,16 @@ class ReportPdf {
         section('أفضل الزبائن'),
         for (final c in data.topCustomers(10)) kv(c.key, m(c.value)),
         section('رأس المال الحالي'),
-        kv('قيمة البضاعة بسعر الشراء', m(capital.stockBuy)),
+        kv('رأس المال كبضاعة (بسعر الشراء)', both(capital.stockBuy, capitalRate)),
+        kv('رأس المال كصندوق (درج)', both(capital.cash, capitalRate)),
+        pw.Divider(),
+        kv('إجمالي رأس المال الكامل (بضاعة + صندوق)', both(capital.stockAndCash, capitalRate),
+            bold: true),
+        pw.SizedBox(height: 6),
         kv('قيمة البضاعة بسعر البيع', m(capital.stockSell)),
         kv('الربح المتوقع من المخزون', m(capital.expectedProfit)),
         kv('ديون الزبائن (نقدية متوقعة)', m(capital.customersOwed)),
         kv('مستحقات الموردين', m(capital.suppliersOwed)),
-        pw.Divider(),
-        kv('رأس المال', m(capital.capital), bold: true),
       ],
     ));
     return doc.save();

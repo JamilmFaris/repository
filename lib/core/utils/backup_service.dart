@@ -85,9 +85,6 @@ class BackupService {
       distPhone: s['distPhone'] as String?,
       lowStock: (s['lowStock'] as num?)?.toInt(),
       appStyle: s['appStyle'] as String?,
-      refCapitalUsd: (s['refCapitalUsd'] as num?)?.toDouble(),
-      refCapitalRate: (s['refCapitalRate'] as num?)?.toDouble(),
-      refCapitalDate: s['refCapitalDate'] as String?,
     );
   }
 }

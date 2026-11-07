@@ -24,11 +24,6 @@ class SettingsProvider extends ChangeNotifier {
   /// نمط التطبيق: normal | luxury (فاخر) | calm (هادئ).
   String appStyle = 'normal';
 
-  /// رأس المال المرجعي المثبَّت بالدولار، مع سعر الصرف وتاريخ التثبيت.
-  double refCapitalUsd = 0;
-  double refCapitalRate = 0;
-  DateTime? refCapitalDate;
-
   Future<void> load() async {
     final m = await _repo.load();
     storeName = m['storeName'];
@@ -43,10 +38,6 @@ class SettingsProvider extends ChangeNotifier {
     distPhone = m['distPhone'];
     lowStock = m['lowStock'];
     appStyle = m['appStyle'];
-    refCapitalUsd = m['refCapitalUsd'];
-    refCapitalRate = m['refCapitalRate'];
-    final d = m['refCapitalDate'] as String?;
-    refCapitalDate = d == null ? null : DateTime.tryParse(d);
     notifyListeners();
   }
 
@@ -73,16 +64,6 @@ class SettingsProvider extends ChangeNotifier {
       repPhone: repPhone,
       distPhone: distPhone,
       lowStock: lowStock,
-    );
-    await load();
-  }
-
-  /// تثبيت رأس المال المرجعي (بالدولار) بسعر الصرف الحالي.
-  Future<void> setReferenceCapital(double usd, double rate) async {
-    await _repo.save(
-      refCapitalUsd: usd,
-      refCapitalRate: rate,
-      refCapitalDate: DateTime.now().toIso8601String(),
     );
     await load();
   }

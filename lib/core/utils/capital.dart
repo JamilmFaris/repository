@@ -24,6 +24,9 @@ class CapitalSummary {
 
   double get expectedProfit => stockSell - stockBuy;
 
+  /// رأس المال الكامل (بضاعة + نقدية الصندوق فقط، بدون ديون الزبائن).
+  double get stockAndCash => stockBuy + cash;
+
   /// رأس المال الحالي = المخزون بسعر الشراء + النقدية + ديون الزبائن.
   double get capital => stockBuy + cash + customersOwed;
 

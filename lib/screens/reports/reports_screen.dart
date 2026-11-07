@@ -82,6 +82,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 capital: capital,
                 storeName: settings.storeName,
                 currency: cur,
+                capitalRate: settings.dollarBuyRate > 0 ? settings.dollarBuyRate : settings.dollarRate,
+                profitRate: settings.dollarRate,
               );
               await ReportPdf.share(bytes, _range.label.replaceAll('/', '-'));
             },
@@ -128,7 +130,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-          _capitalCard(capital, cur),
+          _capitalCard(capital, cur, settings.dollarBuyRate > 0 ? settings.dollarBuyRate : settings.dollarRate),
           _chartCard('المبيعات والأرباح', _lineChart(data.series)),
           if (data.expensesByCategory.isNotEmpty)
             _chartCard('توزيع المصاريف', _expensesPie(data), height: 200),
@@ -223,7 +225,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  /// 💼 رأس المال والأداء (طريقة رأس المال المُعاد تقييمه).
+  /// 💼 الأرباح بالمعادلات الطبيعية: مبيعات − تكلفة البضاعة المباعة − مصاريف.
   Widget _performanceBox(ReportData d, SettingsProvider s, String cur) {
     Widget row(String k, String v, {bool bold = false, Color? color}) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
@@ -237,47 +239,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
         );
+    final gross = d.grossProfit;
+    final net = d.netProfit;
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: s.refCapitalUsd <= 0
-            ? const Text('رأس المال والأداء: ثبّت رأس المال من الإعدادات (تثبيت رأس المال الحالي) ليظهر هنا.',
-                style: TextStyle(color: AppColors.grey))
-            : Builder(builder: (_) {
-                final refSyp = s.refCapitalUsd * s.dollarBuyRate;
-                final gross = d.sales - refSyp;
-                final net = gross - d.expensesTotal;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(children: [
-                      Icon(Icons.account_balance_wallet, size: 20),
-                      SizedBox(width: 6),
-                      Text('رأس المال والأداء',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ]),
-                    const SizedBox(height: 8),
-                    row('رأس المال بالدولار', '\$${Fmt.num2(s.refCapitalUsd)}'),
-                    row('سعر الصرف الحالي', 'شراء ${Fmt.num2(s.dollarBuyRate)} / بيع ${Fmt.num2(s.dollarRate)}'),
-                    row('رأس المال بالليرة (بعد إعادة التقييم)', Fmt.money(refSyp, cur)),
-                    row('تاريخ آخر تثبيت',
-                        s.refCapitalDate == null ? '-' : Fmt.date(s.refCapitalDate!)),
-                    const Divider(),
-                    row('المبيعات', Fmt.money(d.sales, cur)),
-                    row('رأس المال المرجعي', Fmt.money(refSyp, cur)),
-                    row('الربح الإجمالي', Fmt.money(gross, cur),
-                        bold: true, color: gross >= 0 ? AppColors.success : AppColors.danger),
-                    row('المصاريف', Fmt.money(d.expensesTotal, cur)),
-                    const Divider(),
-                    row('الربح الصافي بالليرة', Fmt.money(net, cur),
-                        bold: true, color: net >= 0 ? AppColors.success : AppColors.danger),
-                    row('الربح الصافي بالدولار',
-                        s.dollarRate > 0 ? '\$${Fmt.num2(double.parse((net / s.dollarRate).toStringAsFixed(2)))}' : '-',
-                        bold: true),
-                  ],
-                );
-              }),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.account_balance_wallet, size: 20),
+              SizedBox(width: 6),
+              Text('الأرباح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ]),
+            const SizedBox(height: 8),
+            row('المبيعات', Fmt.money(d.sales, cur)),
+            row('تكلفة البضاعة المباعة', Fmt.money(d.cost, cur)),
+            row('الربح الإجمالي', Fmt.money(gross, cur),
+                bold: true, color: gross >= 0 ? AppColors.success : AppColors.danger),
+            row('المصاريف', Fmt.money(d.expensesTotal, cur)),
+            const Divider(),
+            row('الربح الصافي بالليرة', Fmt.money(net, cur),
+                bold: true, color: net >= 0 ? AppColors.success : AppColors.danger),
+            row('سعر الصرف الحالي', s.dollarRate > 0 ? Fmt.num2(s.dollarRate) : '-'),
+            row('الربح الصافي بالدولار',
+                s.dollarRate > 0
+                    ? '\$${Fmt.num2(double.parse((net / s.dollarRate).toStringAsFixed(2)))}'
+                    : '-',
+                bold: true),
+          ],
+        ),
       ),
     );
   }
@@ -288,7 +280,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return const SizedBox.shrink();
     }
     return _chartCard(
-      'تطور رأس المال بالدولار (12 شهراً)',
+      'تطور رأس المال بالدولار (12 شهراً)\n(بضاعة + صندوق + ديون الزبائن)',
       LineChart(LineChartData(
         gridData: const FlGridData(show: true),
         borderData: FlBorderData(show: false),
@@ -372,37 +364,90 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _capitalCard(CapitalSummary c, String cur) {
-    Widget row(String k, double v, {bool bold = false}) => Padding(
+  Widget _capitalCard(CapitalSummary c, String cur, double rate) {
+    Widget big(String emoji, String title, String sub, double v, Color color) => Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          color: color.withValues(alpha: 0.10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: color.withValues(alpha: 0.5), width: 1.4),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: 34)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+                      Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.grey)),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(Fmt.money(v, cur),
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: color)),
+                      ),
+                      Text(
+                        rate > 0
+                            ? '(ما يعادل ${Fmt.num2(v / rate < 100 ? double.parse((v / rate).toStringAsFixed(2)) : (v / rate).roundToDouble())}\$)'
+                            : '(حدّد سعر الدولار من الإعدادات)',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+    Widget row(String k, double v) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(k, style: TextStyle(fontWeight: bold ? FontWeight.bold : null)),
-              Text(Fmt.money(v, cur),
-                  style: TextStyle(fontWeight: bold ? FontWeight.bold : null, fontSize: bold ? 16 : 14)),
-            ],
+            children: [Text(k), Text(Fmt.money(v, cur))],
           ),
         );
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('رأس المال والمخزون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 8),
-            row('البضاعة كاملة بسعر الشراء', c.stockBuy),
-            row('البضاعة كاملة بسعر البيع', c.stockSell),
-            row('الربح المتوقع من المخزون', c.expectedProfit),
-            row('رصيد الصندوق (الدرج)', c.cash),
-            row('ديون الزبائن (نقدية متوقعة)', c.customersOwed),
-            row('مستحقات الموردين', c.suppliersOwed),
-            const Divider(),
-            row('رأس المال الحالي', c.capital, bold: true),
-          ],
-        ),
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8, right: 4),
+            child: Text('رأس المال', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ),
+          big('💰', 'رأس المال كـ "بضاعة"', 'البضاعة في المخزن بسعر الشراء فقط', c.stockBuy,
+              const Color(0xFF2563EB)),
+          big('💵', 'رأس المال كـ "صندوق (درج)"', 'النقد الموجود في الصندوق فقط', c.cash,
+              AppColors.success),
+          big('🏦', 'إجمالي رأس المال الكامل', 'البضاعة + نقد الصندوق', c.stockAndCash,
+              const Color(0xFF7C3AED)),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('معلومات إضافية (لا تدخل في الإجمالي أعلاه)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  row('البضاعة كاملة بسعر البيع', c.stockSell),
+                  row('الربح المتوقع من المخزون', c.expectedProfit),
+                  row('ديون الزبائن (نقدية متوقعة)', c.customersOwed),
+                  row('مستحقات الموردين', c.suppliersOwed),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

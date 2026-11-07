@@ -81,6 +81,8 @@ void main() {
       capital: CapitalSummary(stockBuy: 1, stockSell: 2, customersOwed: 0, suppliersOwed: 0),
       storeName: 'مستودع',
       currency: 'ل.س',
+      capitalRate: 14200,
+      profitRate: 14500,
     );
     expect(bytes.length, greaterThan(1000));
   });

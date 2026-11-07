@@ -13,7 +13,6 @@ import '../../providers/invoice_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../core/utils/capital.dart';
 import '../coupons/coupons_screen.dart';
 import '../products/add_edit_product_screen.dart';
 
@@ -180,22 +179,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           const Divider(height: 32),
-          const Text('رأس المال المرجعي',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(
-            s.refCapitalUsd > 0
-                ? 'المثبّت: \$${Fmt.num2(s.refCapitalUsd)} (بسعر ${Fmt.num2(s.refCapitalRate)}) '
-                    'بتاريخ ${s.refCapitalDate == null ? '-' : Fmt.date(s.refCapitalDate!)}'
-                : 'لم يُثبَّت رأس مال مرجعي بعد',
-            style: const TextStyle(color: AppColors.grey),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.sync),
-            label: const Text('تثبيت رأس المال الحالي'),
-            onPressed: _pinCapital,
-          ),
           const Divider(height: 32),
           const Row(children: [
             Icon(Icons.lock, size: 18),
@@ -329,41 +312,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _pinCapital() async {
-    final s = context.read<SettingsProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    if (s.dollarBuyRate <= 0) {
-      messenger.showSnackBar(const SnackBar(content: Text('حدّد سعر شراء الدولار أولاً واحفظ')));
-      return;
-    }
-    final cap = CapitalSummary.compute(
-      products: context.read<ProductProvider>().products,
-      invoices: context.read<InvoiceProvider>().invoices,
-      parties: context.read<PartyProvider>(),
-      cash: context.read<CashProvider>().balance,
-    );
-    final usd = cap.capital / s.dollarBuyRate;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تثبيت رأس المال'),
-        content: Text(
-          'رأس المال الحالي: ${Fmt.money(cap.capital, s.currency)}\n'
-          'بسعر شراء الدولار ${Fmt.num2(s.dollarBuyRate)} = \$${Fmt.num2(usd)}\n\n'
-          'سيُحفظ كرأس مال مرجعي بالدولار.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تثبيت')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await s.setReferenceCapital(usd, s.dollarBuyRate);
-    await CapitalSnapshots.save(capitalSyp: cap.capital, buyRate: s.dollarBuyRate);
-    messenger.showSnackBar(const SnackBar(content: Text('تم تثبيت رأس المال المرجعي')));
   }
 
   Future<void> _reloadAll() async {
